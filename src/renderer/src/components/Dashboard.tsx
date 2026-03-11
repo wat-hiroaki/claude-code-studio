@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { cn } from '../lib/utils'
 import { Users, AlertCircle, XCircle, CheckCircle2 } from 'lucide-react'
+import { ActivityLog } from './ActivityLog'
 import type { AgentStatus } from '@shared/types'
 
 const statusColors: Record<AgentStatus, string> = {
@@ -83,6 +84,9 @@ export function Dashboard(): JSX.Element {
           </button>
         ))}
       </div>
+
+      {/* Activity Log */}
+      <ActivityLog />
     </div>
   )
 }

@@ -62,11 +62,18 @@
   "chain": {
     "title": "タスクチェーン",
     "new": "新規チェーン",
+    "name": "チェーン名",
     "trigger": "トリガーエージェント",
     "condition": "条件",
     "target": "ターゲットエージェント",
     "message": "メッセージテンプレート",
+    "messagePlaceholder": "例: {{project}} でテストを実行...",
     "onError": "エラー時",
+    "keyword": "キーワード",
+    "selectAgent": "-- エージェントを選択 --",
+    "empty": "タスクチェーンはまだありません。作成してワークフローを自動化しましょう。",
+    "activate": "有効化",
+    "deactivate": "無効化",
     "conditions": {
       "complete": "完了時",
       "keyword": "キーワード検出時",
@@ -76,6 +83,25 @@
       "stop": "チェーン停止",
       "skip": "スキップして続行",
       "notify_only": "通知のみ"
+    }
+  },
+  "contextPane": {
+    "details": "詳細"
+  },
+  "activity": {
+    "title": "アクティビティログ",
+    "empty": "アクティビティはまだありません。エージェントが稼働すると表示されます。",
+    "type": {
+      "completed": "完了",
+      "error": "エラー",
+      "tool": "ツール",
+      "message": "メッセージ"
+    },
+    "events": {
+      "taskCompleted": "タスク完了",
+      "errorOccurred": "エラー発生",
+      "toolRunning": "ツール実行中",
+      "toolExec": "ツール"
     }
   },
   "settings": {

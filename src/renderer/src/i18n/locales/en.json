@@ -62,11 +62,18 @@
   "chain": {
     "title": "Task Chains",
     "new": "New Chain",
+    "name": "Chain Name",
     "trigger": "Trigger Agent",
     "condition": "Condition",
     "target": "Target Agent",
     "message": "Message Template",
+    "messagePlaceholder": "e.g., Run tests on {{project}}...",
     "onError": "On Error",
+    "keyword": "Keyword",
+    "selectAgent": "-- Select Agent --",
+    "empty": "No task chains yet. Create one to automate agent workflows.",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
     "conditions": {
       "complete": "On Complete",
       "keyword": "On Keyword",
@@ -76,6 +83,25 @@
       "stop": "Stop Chain",
       "skip": "Skip & Continue",
       "notify_only": "Notify Only"
+    }
+  },
+  "contextPane": {
+    "details": "Details"
+  },
+  "activity": {
+    "title": "Activity Log",
+    "empty": "No activity yet. Events will appear here as agents work.",
+    "type": {
+      "completed": "Completed",
+      "error": "Error",
+      "tool": "Tool",
+      "message": "Message"
+    },
+    "events": {
+      "taskCompleted": "Task completed",
+      "errorOccurred": "Error occurred",
+      "toolRunning": "Running tool",
+      "toolExec": "Tool"
     }
   },
   "settings": {
