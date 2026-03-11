@@ -155,6 +155,15 @@ export interface ElectronAPI {
   // Workspace scanner
   scanWorkspaces: (rootPath: string) => Promise<DiscoveredWorkspace[]>
 
+  // PTY terminal
+  ptyStart: (agentId: string) => Promise<void>
+  ptyWrite: (agentId: string, data: string) => Promise<void>
+  ptyResize: (agentId: string, cols: number, rows: number) => Promise<void>
+  ptyInterrupt: (agentId: string) => Promise<void>
+  ptyStop: (agentId: string) => Promise<void>
+  onPtyData: (callback: (agentId: string, data: string) => void) => () => void
+  onPtyExit: (callback: (agentId: string, exitCode: number) => void) => () => void
+
   // App
   getAppVersion: () => Promise<string>
   getPlatform: () => string

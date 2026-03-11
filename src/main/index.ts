@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeIma
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { SessionManager } from './session-manager'
+import { PtySessionManager } from './pty-session-manager'
 import { Database } from './database'
 import { ChainOrchestrator } from './chain-orchestrator'
 import { scanWorkspaces } from './workspace-scanner'
@@ -10,6 +11,7 @@ import type { CreateAgentParams } from '@shared/types'
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let sessionManager: SessionManager
+let ptySessionManager: PtySessionManager
 let database: Database
 let chainOrchestrator: ChainOrchestrator
 
@@ -317,9 +319,33 @@ app.whenReady().then(() => {
     }
   })
 
+  ptySessionManager = new PtySessionManager(
+    database,
+    (agentId, data) => {
+      mainWindow?.webContents.send('pty:data', agentId, data)
+    },
+    (agentId, status) => {
+      mainWindow?.webContents.send('agent:status-change', agentId, status)
+      chainOrchestrator.handleStatusChange(agentId, status)
+      if (status === 'awaiting' || status === 'error') {
+        const agent = database.getAgent(agentId)
+        if (agent) {
+          const title = status === 'awaiting' ? 'Approval Required' : 'Error Occurred'
+          const body = `${agent.name}: ${agent.currentTask || 'Check agent for details'}`
+          new Notification({ title, body }).show()
+          mainWindow?.webContents.send('notification', title, body)
+        }
+      }
+    },
+    (agentId, exitCode) => {
+      mainWindow?.webContents.send('pty:exit', agentId, exitCode)
+    }
+  )
+
   chainOrchestrator = new ChainOrchestrator(database, sessionManager)
 
   setupIPC()
+  setupPtyIPC()
   createWindow()
   createTray()
 
@@ -338,5 +364,37 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   app.isQuitting = true
   sessionManager.stopAll()
+  ptySessionManager.stopAll()
   database.close()
 })
+
+function setupPtyIPC(): void {
+  ipcMain.handle('pty:start', async (_event, agentId: string) => {
+    if (typeof agentId !== 'string' || !agentId) throw new Error('Invalid agentId')
+    const agent = database.getAgent(agentId)
+    if (!agent) throw new Error(`Agent not found: ${agentId}`)
+    await ptySessionManager.startSession(agent)
+  })
+
+  ipcMain.handle('pty:write', async (_event, agentId: string, data: string) => {
+    if (typeof agentId !== 'string' || typeof data !== 'string') throw new Error('Invalid params')
+    ptySessionManager.writeInput(agentId, data)
+  })
+
+  ipcMain.handle('pty:resize', async (_event, agentId: string, cols: number, rows: number) => {
+    if (typeof agentId !== 'string' || typeof cols !== 'number' || typeof rows !== 'number') {
+      throw new Error('Invalid params')
+    }
+    ptySessionManager.resize(agentId, cols, rows)
+  })
+
+  ipcMain.handle('pty:interrupt', async (_event, agentId: string) => {
+    if (typeof agentId !== 'string') throw new Error('Invalid agentId')
+    ptySessionManager.interruptSession(agentId)
+  })
+
+  ipcMain.handle('pty:stop', async (_event, agentId: string) => {
+    if (typeof agentId !== 'string') throw new Error('Invalid agentId')
+    ptySessionManager.stopSession(agentId)
+  })
+}

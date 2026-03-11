@@ -64,6 +64,27 @@ const api: ElectronAPI = {
   // Workspace scanner
   scanWorkspaces: (rootPath) => ipcRenderer.invoke('workspace:scan', rootPath),
 
+  // PTY terminal
+  ptyStart: (agentId) => ipcRenderer.invoke('pty:start', agentId),
+  ptyWrite: (agentId, data) => ipcRenderer.invoke('pty:write', agentId, data),
+  ptyResize: (agentId, cols, rows) => ipcRenderer.invoke('pty:resize', agentId, cols, rows),
+  ptyInterrupt: (agentId) => ipcRenderer.invoke('pty:interrupt', agentId),
+  ptyStop: (agentId) => ipcRenderer.invoke('pty:stop', agentId),
+  onPtyData: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, agentId: string, data: string): void => {
+      callback(agentId, data)
+    }
+    ipcRenderer.on('pty:data', handler)
+    return () => ipcRenderer.removeListener('pty:data', handler)
+  },
+  onPtyExit: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, agentId: string, exitCode: number): void => {
+      callback(agentId, exitCode)
+    }
+    ipcRenderer.on('pty:exit', handler)
+    return () => ipcRenderer.removeListener('pty:exit', handler)
+  },
+
   // App
   getAppVersion: () => ipcRenderer.invoke('app:version'),
   getPlatform: () => process.platform,
