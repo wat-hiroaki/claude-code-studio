@@ -285,7 +285,7 @@ declare module 'electron' {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.impme.claude-code-desktop')
+  electronApp.setAppUserModelId('dev.wat-hiroaki.claude-code-desktop')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

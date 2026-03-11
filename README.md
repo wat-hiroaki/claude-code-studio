@@ -95,7 +95,7 @@ src/
 
 ## License
 
-MIT - [IMPMe Inc.](https://impme.co.jp)
+MIT - wat-hiroaki
 
 ---
 
@@ -135,4 +135,4 @@ npm run package
 
 ## ライセンス
 
-MIT - [株式会社 IMPMe](https://impme.co.jp)
+MIT - wat-hiroaki
