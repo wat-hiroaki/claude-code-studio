@@ -1,4 +1,4 @@
-import { spawn, execFile, type ChildProcess } from 'child_process'
+import { spawn, execFile, execFileSync, type ChildProcess } from 'child_process'
 import { existsSync, statSync } from 'fs'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
@@ -60,11 +60,42 @@ export class SessionManager {
   private onOutput: OutputCallback
   private onStatusChange: StatusCallback
   private database: Database
+  private claudePath: string
 
   constructor(database: Database, onOutput: OutputCallback, onStatusChange: StatusCallback) {
     this.database = database
     this.onOutput = onOutput
     this.onStatusChange = onStatusChange
+    this.claudePath = this.resolveClaudePath()
+  }
+
+  private resolveClaudePath(): string {
+    // Try to find claude CLI in common locations
+    if (process.platform === 'win32') {
+      // On Windows, try npm global path first
+      const npmGlobal = path.join(
+        process.env.APPDATA || '',
+        'npm',
+        'claude.cmd'
+      )
+      if (existsSync(npmGlobal)) return npmGlobal
+
+      // Try `where claude` as fallback
+      try {
+        const result = execFileSync('where', ['claude'], { encoding: 'utf-8' }).trim()
+        const firstLine = result.split('\n')[0].trim()
+        if (firstLine && existsSync(firstLine)) return firstLine
+      } catch { /* not found */ }
+    } else {
+      // Unix: try `which claude`
+      try {
+        const result = execFileSync('which', ['claude'], { encoding: 'utf-8' }).trim()
+        if (result && existsSync(result)) return result
+      } catch { /* not found */ }
+    }
+
+    // Fallback: hope it's in PATH with shell
+    return 'claude'
   }
 
   async startSession(agent: Agent): Promise<void> {
@@ -87,10 +118,11 @@ export class SessionManager {
       args.push('--system-prompt', agent.systemPrompt)
     }
 
-    const proc = spawn('claude', args, {
+    const useShell = this.claudePath === 'claude'
+    const proc = spawn(this.claudePath, args, {
       cwd: agent.projectPath,
       env: { ...process.env },
-      shell: false,
+      shell: useShell,
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
