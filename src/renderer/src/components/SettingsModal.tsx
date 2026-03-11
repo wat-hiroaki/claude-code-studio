@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
-import { X, Moon, Sun, Monitor, Globe, Bell } from 'lucide-react'
+import { X, Moon, Sun, Monitor, Globe, Bell, Terminal } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface SettingsModalProps {
@@ -10,7 +10,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
   const { t, i18n } = useTranslation()
-  const { theme, setTheme } = useAppStore()
+  const { theme, setTheme, usePtyMode, setUsePtyMode } = useAppStore()
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
@@ -127,6 +127,28 @@ export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
                 日本語
               </button>
             </div>
+          </div>
+
+          {/* Terminal Mode */}
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium mb-3">
+              <Terminal size={16} />
+              {t('settings.terminalMode', 'Terminal Mode')}
+            </div>
+            <label className="flex items-center justify-between p-2 rounded hover:bg-accent/50 cursor-pointer">
+              <div>
+                <span className="text-sm">{t('settings.ptyMode', 'PTY Terminal (xterm.js)')}</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {t('settings.ptyModeDesc', 'Real terminal output with full CLI experience. Disable to use legacy chat-style view.')}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={usePtyMode}
+                onChange={(e) => setUsePtyMode(e.target.checked)}
+                className="rounded"
+              />
+            </label>
           </div>
 
           {/* Notifications */}

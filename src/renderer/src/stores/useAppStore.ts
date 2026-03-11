@@ -34,6 +34,10 @@ interface AppState {
   setPaneLayout: (layout: 1 | 2 | 4) => void
   setPaneAgent: (paneIndex: number, agentId: string | null) => void
 
+  // Terminal mode
+  usePtyMode: boolean
+  setUsePtyMode: (use: boolean) => void
+
   // Theme
   theme: 'dark' | 'light' | 'system'
   setTheme: (theme: 'dark' | 'light' | 'system') => void
@@ -88,6 +92,13 @@ export const useAppStore = create<AppState>((set) => ({
       ids[paneIndex] = agentId
       return { paneAgentIds: ids }
     }),
+
+  // Terminal mode
+  usePtyMode: localStorage.getItem('usePtyMode') !== 'false',
+  setUsePtyMode: (use) => {
+    localStorage.setItem('usePtyMode', String(use))
+    set({ usePtyMode: use })
+  },
 
   // Theme
   theme: (localStorage.getItem('theme') as 'dark' | 'light' | 'system') || 'dark',

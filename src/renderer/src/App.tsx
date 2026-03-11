@@ -3,6 +3,7 @@ import { useAppStore } from './stores/useAppStore'
 import { TitleBar } from './components/TitleBar'
 import { AgentList } from './components/AgentList'
 import { TerminalView } from './components/TerminalView'
+import { PtyTerminalView } from './components/PtyTerminalView'
 import { ContextPane } from './components/ContextPane'
 import { Dashboard } from './components/Dashboard'
 import { BroadcastModal } from './components/BroadcastModal'
@@ -15,7 +16,7 @@ import { cn } from './lib/utils'
 import type { DiscoveredWorkspace } from '@shared/types'
 
 function PaneGrid(): JSX.Element {
-  const { selectedAgentId, paneLayout, paneAgentIds, setPaneAgent, agents } = useAppStore()
+  const { selectedAgentId, paneLayout, paneAgentIds, setPaneAgent, agents, usePtyMode } = useAppStore()
 
   // For single pane, use selectedAgentId directly
   // For multi-pane, use paneAgentIds
@@ -38,7 +39,9 @@ function PaneGrid(): JSX.Element {
         </div>
       )
     }
-    return <TerminalView agentId={selectedAgentId} />
+    return usePtyMode
+      ? <PtyTerminalView agentId={selectedAgentId} />
+      : <TerminalView agentId={selectedAgentId} />
   }
 
   const paneCount = paneLayout
@@ -70,7 +73,13 @@ function PaneGrid(): JSX.Element {
             </div>
           )
         }
-        return (
+        return usePtyMode ? (
+          <PtyTerminalView
+            key={`${i}-${agentId}`}
+            agentId={agentId}
+            compact={paneLayout === 4}
+          />
+        ) : (
           <TerminalView
             key={`${i}-${agentId}`}
             agentId={agentId}
