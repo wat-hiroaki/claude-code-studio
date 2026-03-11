@@ -8,6 +8,7 @@ import { Dashboard } from './components/Dashboard'
 import { BroadcastModal } from './components/BroadcastModal'
 import { CreateAgentDialog } from './components/CreateAgentDialog'
 import { ToastContainer, showToast } from './components/ToastContainer'
+import { QuickSearch } from './components/QuickSearch'
 
 export function App(): JSX.Element {
   const {
@@ -137,6 +138,7 @@ export function App(): JSX.Element {
 
       <BroadcastModal />
       <ToastContainer />
+      <QuickSearch />
       {showCreateDialog && <CreateAgentDialog onClose={() => setShowCreateDialog(false)} />}
     </div>
   )
