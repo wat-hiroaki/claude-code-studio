@@ -232,11 +232,15 @@ export class Database {
   // Team Stats
   getTeamStats(): TeamStats {
     const agents = this.getAgents()
+    const today = new Date().toISOString().slice(0, 10)
+    const completedToday = agents.filter(
+      (a) => a.status === 'idle' && a.updatedAt.startsWith(today)
+    ).length
     return {
       active: agents.filter((a) => ['active', 'thinking', 'tool_running'].includes(a.status)).length,
       awaiting: agents.filter((a) => a.status === 'awaiting').length,
       error: agents.filter((a) => a.status === 'error').length,
-      completedToday: 0
+      completedToday
     }
   }
 

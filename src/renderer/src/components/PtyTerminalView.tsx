@@ -16,7 +16,7 @@ interface PtyTerminalViewProps {
 
 function AgentHeader({ agent, compact }: { agent: Agent; compact: boolean }): JSX.Element {
   const { t } = useTranslation()
-  const updateAgent = useAppStore((s) => s.updateAgent)
+  const updateAgentInList = useAppStore((s) => s.updateAgentInList)
 
   const handleRestart = useCallback(async () => {
     try {
@@ -24,7 +24,7 @@ function AgentHeader({ agent, compact }: { agent: Agent; compact: boolean }): JS
       await window.api.ptyStart(agent.id)
       showToast(t('toast.agentRestarted', 'Agent restarted'), 'success')
     } catch (err) {
-      showToast(`Restart failed: ${err}`, 'error')
+      showToast(`Restart failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
     }
   }, [agent.id, t])
 
@@ -32,7 +32,7 @@ function AgentHeader({ agent, compact }: { agent: Agent; compact: boolean }): JS
     try {
       await window.api.ptyStop(agent.id)
     } catch (err) {
-      showToast(`Stop failed: ${err}`, 'error')
+      showToast(`Stop failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
     }
   }, [agent.id])
 
@@ -40,13 +40,14 @@ function AgentHeader({ agent, compact }: { agent: Agent; compact: boolean }): JS
     try {
       await window.api.ptyInterrupt(agent.id)
     } catch (err) {
-      showToast(`Interrupt failed: ${err}`, 'error')
+      showToast(`Interrupt failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
     }
   }, [agent.id])
 
-  const togglePin = useCallback(() => {
-    updateAgent(agent.id, { isPinned: !agent.isPinned })
-  }, [agent.id, agent.isPinned, updateAgent])
+  const togglePin = useCallback(async () => {
+    await window.api.updateAgent(agent.id, { isPinned: !agent.isPinned })
+    updateAgentInList(agent.id, { isPinned: !agent.isPinned })
+  }, [agent.id, agent.isPinned, updateAgentInList])
 
   const statusBadge = getStatusBadge(agent.status)
 
@@ -153,7 +154,7 @@ export function PtyTerminalView({ agentId, compact = false }: PtyTerminalViewPro
     try {
       await window.api.ptyStart(agentId)
     } catch (err) {
-      showToast(`Failed to restart: ${err}`, 'error')
+      showToast(`Failed to restart: ${err instanceof Error ? err.message : String(err)}`, 'error')
     }
   }, [agentId])
 
