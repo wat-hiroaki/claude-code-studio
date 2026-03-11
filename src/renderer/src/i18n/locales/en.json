@@ -167,7 +167,18 @@
       "taskComplete": "Task Complete",
       "approvalRequired": "Approval Required",
       "errors": "Errors"
-    }
+    },
+    "terminalMode": "Terminal Mode",
+    "ptyMode": "PTY Terminal (xterm.js)",
+    "ptyModeDesc": "Real terminal output with full CLI experience. Disable to use legacy chat-style view."
+  },
+  "composer": {
+    "placeholder": "Type a message... (Enter to send, Shift+Enter for newline)",
+    "waiting": "Agent is busy...",
+    "send": "Send (Ctrl+Enter)",
+    "clear": "Clear",
+    "toSend": "to send",
+    "forNewline": "for newline"
   },
   "workspace": {
     "title": "Workspace Scanner",

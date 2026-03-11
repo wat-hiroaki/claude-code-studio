@@ -167,7 +167,18 @@
       "taskComplete": "タスク完了",
       "approvalRequired": "承認待ち",
       "errors": "エラー"
-    }
+    },
+    "terminalMode": "ターミナルモード",
+    "ptyMode": "PTYターミナル (xterm.js)",
+    "ptyModeDesc": "実際のターミナル出力でCLI体験をそのまま再現します。無効にするとレガシーチャット表示になります。"
+  },
+  "composer": {
+    "placeholder": "メッセージを入力... (Enterで送信、Shift+Enterで改行)",
+    "waiting": "エージェント処理中...",
+    "send": "送信 (Ctrl+Enter)",
+    "clear": "クリア",
+    "toSend": "で送信",
+    "forNewline": "で改行"
   },
   "workspace": {
     "title": "ワークスペーススキャナー",
