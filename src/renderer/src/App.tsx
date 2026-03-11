@@ -209,10 +209,13 @@ export function App(): JSX.Element {
       if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
         e.preventDefault()
         if (selectedAgentId) {
-          window.api.archiveAgent(selectedAgentId)
-          const remaining = agents.filter((a) => a.id !== selectedAgentId)
-          setSelectedAgent(remaining.length > 0 ? remaining[0].id : null)
-          loadAgents()
+          const agentToArchive = agents.find((a) => a.id === selectedAgentId)
+          if (agentToArchive && confirm(`Archive agent "${agentToArchive.name}"?`)) {
+            window.api.archiveAgent(selectedAgentId)
+            const remaining = agents.filter((a) => a.id !== selectedAgentId && a.status !== 'archived')
+            setSelectedAgent(remaining.length > 0 ? remaining[0].id : null)
+            loadAgents()
+          }
         }
       }
     }

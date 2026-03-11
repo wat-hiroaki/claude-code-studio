@@ -35,7 +35,8 @@
     "skillsPlaceholder": "e.g., React, TypeScript, Testing",
     "team": "Team",
     "reportsTo": "Reports To",
-    "noTeam": "No Team"
+    "noTeam": "No Team",
+    "workspace": "Workspace"
   },
   "teamMgmt": {
     "title": "Organization",

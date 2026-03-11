@@ -138,12 +138,50 @@ export function ContextPane(): JSX.Element {
           </div>
         )}
 
+        {/* Skills */}
+        {agent.skills.length > 0 && (
+          <div className="p-4 border-b border-border">
+            <div className="text-xs text-muted-foreground mb-2">{t('agent.skills')}:</div>
+            <div className="flex flex-wrap gap-1">
+              {agent.skills.map((skill) => (
+                <span key={skill} className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Reports To */}
+        {agent.reportTo && (() => {
+          const manager = agents.find((a) => a.id === agent.reportTo)
+          return manager ? (
+            <div className="p-4 border-b border-border">
+              <div className="flex items-center gap-2 text-xs">
+                <User size={14} className="text-muted-foreground" />
+                <span className="text-muted-foreground">{t('agent.reportsTo')}:</span>
+                <button
+                  onClick={() => setSelectedAgent(manager.id)}
+                  className="text-primary hover:underline"
+                >
+                  {manager.name}
+                </button>
+              </div>
+            </div>
+          ) : null
+        })()}
+
         {/* Session Meta */}
         <div className="p-4 space-y-2">
           <div className="flex items-center gap-2 text-xs">
             <Clock size={14} className="text-muted-foreground" />
             <span className="text-muted-foreground">Created:</span>
             <span>{new Date(agent.createdAt).toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <Clock size={14} className="text-muted-foreground" />
+            <span className="text-muted-foreground">Updated:</span>
+            <span>{new Date(agent.updatedAt).toLocaleString()}</span>
           </div>
         </div>
       </div>

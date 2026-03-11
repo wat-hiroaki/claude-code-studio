@@ -1,6 +1,6 @@
 # Claude Code Desktop
 
-> AI Agent Team Management Client — Manage Claude Code sessions like team members
+> Multi-workspace AI Agent Management Client — Manage Claude Code CLI sessions like a team
 
 [English](#english) | [日本語](#japanese)
 
@@ -10,30 +10,42 @@
 
 ## Overview
 
-Claude Code Desktop is an Electron-based desktop application that lets you manage multiple Claude Code CLI sessions as "team members." Think of it as **LINE/Slack for your AI agents** — chat with individual agents, broadcast instructions to your whole team, and monitor everyone's status from a unified dashboard.
+Claude Code Desktop is an Electron desktop application for managing multiple Claude Code CLI sessions. It solves five pain points of working with Claude Code:
+
+1. **Context contamination** — Workspaces provide strict isolation (MCP servers, API keys, guardrails) between company and personal projects
+2. **Session management** — Bird's-eye dashboard for monitoring multiple concurrent agents
+3. **Mobility** — SSH + tmux integration keeps sessions alive on remote servers when you leave your desk
+4. **Input UX** — Rich Composer with templates, auto-expand, and voice-dictation-friendly input
+5. **Ecosystem visibility** — Agent Profile View surfaces CLAUDE.md, Memory, Skills, MCP, and Hooks in one place
 
 ### Key Features
 
-- **Agent Management** — Create, name, and organize Claude Code sessions with roles and projects
-- **Chat UI** — LINE-style message bubbles for 1-on-1 conversations with each agent
-- **Team Dashboard** — Bird's-eye view of all agents' statuses (active, thinking, error, etc.)
+- **Workspace Isolation** — Local or SSH workspaces with per-workspace configuration
+- **Real Terminal** — xterm.js + node-pty for true terminal rendering (not just chat bubbles)
+- **SSH + tmux** — Connect to remote machines via SSH; sessions persist in tmux when disconnected
+- **Agent Management** — Create, name, and organize agents with roles and projects
+- **Composer** — Rich text input with prompt templates, keyboard shortcuts, auto-expand
+- **Team Dashboard** — Real-time status monitoring (active, thinking, tool_running, awaiting, error)
 - **Broadcast** — Send the same instruction to multiple agents simultaneously
 - **Task Chains** — Automatically trigger Agent B when Agent A completes a task
-- **Notifications** — Native OS notifications for task completion, errors, and approval requests
-- **System Tray** — Runs in background with status indicator
-- **i18n** — English and Japanese support
+- **Agent Profile** — Visualize CLAUDE.md rules, memory files, skills, MCP servers, and hooks
+- **Multi-pane Layout** — 1, 2, or 4 terminal panes side by side
+- **Notifications** — Native OS notifications for approval requests and errors
+- **System Tray** — Background operation with status indicator
+- **i18n** — English and Japanese
 
 ### Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Electron 33+ |
+| Framework | Electron 33 + electron-vite |
+| Terminal | xterm.js + node-pty |
 | UI | React 18 + TypeScript |
 | Styling | Tailwind CSS + shadcn/ui design tokens |
 | State | Zustand |
-| CLI Integration | child_process (stream-json) |
+| SSH | ssh2 + tmux |
 | Database | JSON file (atomic writes) |
-| Build | electron-vite + electron-builder |
+| Build | electron-builder |
 
 ## Getting Started
 
@@ -42,22 +54,25 @@ Claude Code Desktop is an Electron-based desktop application that lets you manag
 - Node.js >= 20
 - npm >= 10
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
+- For SSH workspaces: `tmux` and `claude` installed on the remote host
 
 ### Install & Run
 
 ```bash
-# Clone
 git clone https://github.com/wat-hiroaki/claude-code-desktop.git
 cd claude-code-desktop
-
-# Install dependencies
 npm install
-
-# Run in development mode
 npm run dev
+```
 
-# Build for Windows
+### Build
+
+```bash
+# Windows installer
 npm run package
+
+# Development build only
+npm run build
 ```
 
 ### Keyboard Shortcuts
@@ -67,31 +82,74 @@ npm run package
 | `Ctrl+N` | New Agent |
 | `Ctrl+K` | Quick Search |
 | `Ctrl+D` | Toggle Dashboard |
+| `Ctrl+L` | Focus Composer |
 | `Ctrl+Shift+B` | Broadcast Mode |
 | `Ctrl+Tab` | Next Agent |
-| `Ctrl+B` | Toggle Left Pane |
+| `Ctrl+Shift+Tab` | Previous Agent |
+| `Ctrl+1-9` | Switch to Agent #N |
 | `Ctrl+Shift+P` | Toggle Right Pane |
+| `Ctrl+W` | Archive Agent |
 
 ## Architecture
 
 ```
 src/
-├── main/              # Electron main process
-│   ├── index.ts       # App entry, IPC handlers, window management
-│   ├── database.ts    # JSON file database layer
-│   ├── session-manager.ts  # Claude CLI process management
-│   └── chain-orchestrator.ts # Task chain automation
-├── preload/           # Context bridge (secure IPC)
+├── main/                    # Electron main process
+│   ├── index.ts             # App entry, IPC handlers, routing
+│   ├── database.ts          # JSON file database (atomic writes)
+│   ├── session-manager.ts   # Legacy stream-json CLI management
+│   ├── pty-session-manager.ts   # Local PTY session management
+│   ├── ssh-session-manager.ts   # SSH + tmux remote sessions
+│   ├── chain-orchestrator.ts    # Task chain automation
+│   ├── claude-config-reader.ts  # CLAUDE.md/Memory/Skills reader
+│   └── workspace-scanner.ts     # Project directory scanner
+├── preload/                 # Context bridge (secure IPC)
 │   └── index.ts
-├── renderer/          # React UI
+├── renderer/                # React UI
 │   └── src/
-│       ├── components/  # UI components
-│       ├── stores/      # Zustand stores
-│       ├── i18n/        # Internationalization
-│       └── lib/         # Utilities
-└── shared/            # Shared types between main & renderer
+│       ├── components/      # UI components
+│       │   ├── PtyTerminalView.tsx   # Terminal + header + session lifecycle
+│       │   ├── XtermTerminal.tsx     # xterm.js wrapper
+│       │   ├── Composer.tsx          # Rich text input
+│       │   ├── AgentList.tsx         # Sidebar with workspace filtering
+│       │   ├── AgentProfileView.tsx  # CLAUDE.md ecosystem viewer
+│       │   ├── WorkspaceSwitcher.tsx # Workspace dropdown
+│       │   ├── CreateWorkspaceDialog.tsx  # Local/SSH workspace creation
+│       │   └── ...
+│       ├── stores/          # Zustand state
+│       ├── i18n/            # EN/JA translations
+│       └── lib/             # Utilities
+└── shared/                  # Shared types
     └── types.ts
 ```
+
+## How It Works
+
+### Workspace Model
+
+Workspaces provide isolation between different contexts (company A, company B, personal). Each workspace can be:
+
+- **Local** — Runs Claude Code on this machine via node-pty
+- **SSH** — Connects to a remote host via ssh2, runs Claude Code inside tmux
+
+### Session Lifecycle
+
+1. Create a workspace (local or SSH with host/port/username)
+2. Create an agent within the workspace (name, project path, role)
+3. The terminal auto-connects when you select an agent
+4. SSH sessions persist in tmux — disconnect and reconnect without losing state
+
+### Status Detection
+
+The app parses terminal output to detect Claude Code states:
+- **Awaiting** — Permission prompts (Allow/Deny)
+- **Thinking** — Spinner characters or "Thinking..."
+- **Tool Running** — Read/Edit/Write/Bash/etc. tool execution
+- **Active** — Idle at prompt
+
+## Contributing
+
+Issues and PRs welcome. Please follow existing code patterns.
 
 ## License
 
@@ -103,33 +161,42 @@ MIT - wat-hiroaki
 
 ## 概要
 
-Claude Code Desktop は、複数の Claude Code CLI セッションを「チームメンバー」として管理できる Electron ベースのデスクトップアプリです。**AI エージェントのための LINE/Slack** — 個別チャット、一括指示、ダッシュボードでのステータス監視が可能です。
+Claude Code Desktop は、複数の Claude Code CLI セッションを管理する Electron デスクトップアプリです。以下の5つの課題を解決します:
+
+1. **コンテキスト汚染** — ワークスペースで会社/個人プロジェクトを完全分離
+2. **セッション管理** — ダッシュボードで複数エージェントを一望
+3. **モビリティ** — SSH + tmux でリモートセッション永続化
+4. **入力UX** — テンプレート・自動展開付きの Composer
+5. **エコシステム可視化** — CLAUDE.md, Memory, Skills, MCP, Hooks を一箇所で確認
 
 ### 主な機能
 
-- **エージェント管理** — Claude Code セッションの作成・命名・役割設定
-- **チャット UI** — LINE 風メッセージバブルでのエージェントとの 1on1 会話
-- **チームダッシュボード** — 全エージェントのステータスを俯瞰
-- **ブロードキャスト** — 複数エージェントに同じ指示を同時送信
-- **タスクチェーン** — エージェント A の完了をトリガーにエージェント B へ自動指示
-- **通知** — タスク完了・エラー・承認待ちの OS ネイティブ通知
-- **システムトレイ** — バックグラウンド常駐とステータスアイコン
-- **多言語対応** — 英語・日本語
+- **ワークスペース分離** — ローカル or SSH、プロジェクトごとに設定を分離
+- **リアルターミナル** — xterm.js + node-pty による本物のターミナル表示
+- **SSH + tmux** — リモートマシンに SSH 接続、切断しても tmux でセッション維持
+- **エージェント管理** — 作成・命名・役割設定・プロジェクト紐付け
+- **Composer** — テンプレート・ショートカット・自動展開付きリッチ入力
+- **ダッシュボード** — 全エージェントのリアルタイムステータス監視
+- **ブロードキャスト** — 複数エージェントへの一括指示
+- **タスクチェーン** — A完了→B自動開始
+- **Agent Profile** — CLAUDE.md・Memory・Skills・MCP・Hooks の可視化
+- **マルチペイン** — 1/2/4 ターミナル並列表示
+- **通知** — OS ネイティブ通知
+- **多言語** — 英語・日本語
 
 ### 始め方
 
 ```bash
-# クローン
 git clone https://github.com/wat-hiroaki/claude-code-desktop.git
 cd claude-code-desktop
-
-# 依存関係のインストール
 npm install
-
-# 開発モードで実行
 npm run dev
+```
 
-# Windows 向けビルド
+### ビルド
+
+```bash
+# Windows インストーラー
 npm run package
 ```
 

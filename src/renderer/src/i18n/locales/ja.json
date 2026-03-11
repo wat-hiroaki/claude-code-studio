@@ -35,7 +35,8 @@
     "skillsPlaceholder": "例: React, TypeScript, Testing",
     "team": "チーム",
     "reportsTo": "上長",
-    "noTeam": "未所属"
+    "noTeam": "未所属",
+    "workspace": "ワークスペース"
   },
   "teamMgmt": {
     "title": "組織",
