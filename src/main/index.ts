@@ -127,9 +127,24 @@ function createTray(): void {
   const icon = createTrayIcon()
   tray = new Tray(icon)
   tray.setToolTip('Claude Code Desktop')
+  updateTrayMenu()
 
+  tray.on('click', () => {
+    mainWindow?.show()
+  })
+}
+
+function updateTrayMenu(): void {
+  if (!tray) return
+  const stats = database.getTeamStats()
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show', click: () => mainWindow?.show() },
+    { label: `Active: ${stats.active} | Errors: ${stats.error}`, enabled: false },
+    { type: 'separator' },
+    { label: 'Show Window', click: () => mainWindow?.show() },
+    { label: 'Dashboard', click: () => {
+      mainWindow?.show()
+      mainWindow?.webContents.send('notification', 'Dashboard', 'Toggle dashboard from tray')
+    }},
     { type: 'separator' },
     {
       label: 'Quit',
@@ -140,10 +155,6 @@ function createTray(): void {
     }
   ])
   tray.setContextMenu(contextMenu)
-
-  tray.on('click', () => {
-    mainWindow?.show()
-  })
 }
 
 // Determine if an agent's workspace uses SSH
@@ -553,6 +564,18 @@ declare module 'electron' {
   }
 }
 
+// Global error handlers
+process.on('uncaughtException', (err) => {
+  console.error('[Main] Uncaught exception:', err)
+  if (mainWindow?.webContents) {
+    mainWindow.webContents.send('notification', 'Internal Error', err.message)
+  }
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Main] Unhandled rejection:', reason)
+})
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('dev.wat-hiroaki.claude-code-desktop')
 
@@ -572,9 +595,8 @@ app.whenReady().then(() => {
     }
   }, (agentId, status) => {
     mainWindow?.webContents.send('agent:status-change', agentId, status)
-    // Feed status changes to chain orchestrator
     chainOrchestrator.handleStatusChange(agentId, status)
-    // Show notification for important status changes
+    updateTrayMenu()
     if (status === 'awaiting' || status === 'error') {
       const agent = database.getAgent(agentId)
       if (agent) {
@@ -594,6 +616,7 @@ app.whenReady().then(() => {
     (agentId, status) => {
       mainWindow?.webContents.send('agent:status-change', agentId, status)
       chainOrchestrator.handleStatusChange(agentId, status)
+      updateTrayMenu()
       if (status === 'awaiting' || status === 'error') {
         const agent = database.getAgent(agentId)
         if (agent) {
@@ -617,6 +640,7 @@ app.whenReady().then(() => {
     (agentId, status) => {
       mainWindow?.webContents.send('agent:status-change', agentId, status)
       chainOrchestrator?.handleStatusChange(agentId, status)
+      updateTrayMenu()
       if (status === 'awaiting' || status === 'error') {
         const agent = database.getAgent(agentId)
         if (agent) {
