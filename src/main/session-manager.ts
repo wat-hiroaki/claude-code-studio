@@ -1,7 +1,42 @@
 import { spawn, exec, type ChildProcess } from 'child_process'
+import { existsSync, statSync } from 'fs'
+import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import type { Agent, AgentStatus, MessageRole, ContentType } from '@shared/types'
 import type { Database } from './database'
+
+/**
+ * Validates that projectPath is safe to use as a working directory for spawn.
+ * - Must be an absolute path
+ * - Must not contain path traversal components (..)
+ * - Must exist and be a directory
+ */
+export function validateProjectPath(projectPath: string): void {
+  // Normalize to forward slashes for consistent checking, then use path.resolve
+  const normalized = projectPath.replace(/\\/g, '/')
+
+  // Check for path traversal components
+  const segments = normalized.split('/')
+  if (segments.some((seg) => seg === '..')) {
+    throw new Error(`Invalid project path: path traversal (..) is not allowed: ${projectPath}`)
+  }
+
+  // Must be absolute (works for both Windows C:/... and Unix /...)
+  if (!path.isAbsolute(projectPath)) {
+    throw new Error(`Invalid project path: must be an absolute path: ${projectPath}`)
+  }
+
+  // Must exist
+  if (!existsSync(projectPath)) {
+    throw new Error(`Invalid project path: directory does not exist: ${projectPath}`)
+  }
+
+  // Must be a directory
+  const stat = statSync(projectPath)
+  if (!stat.isDirectory()) {
+    throw new Error(`Invalid project path: not a directory: ${projectPath}`)
+  }
+}
 
 interface ParsedMessage {
   role: MessageRole
@@ -33,6 +68,9 @@ export class SessionManager {
   }
 
   async startSession(agent: Agent): Promise<void> {
+    // Validate project path before spawning any process
+    validateProjectPath(agent.projectPath)
+
     const sessionId = agent.claudeSessionId || uuidv4()
 
     // Use stream-json bidirectional mode
