@@ -36,22 +36,29 @@ interface ProjectGroup {
 
 export function AgentList(): JSX.Element {
   const { t } = useTranslation()
-  const { agents, selectedAgentId, setSelectedAgent, messages } = useAppStore()
+  const { agents, selectedAgentId, setSelectedAgent, messages, activeWorkspaceId } = useAppStore()
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [createForProject, setCreateForProject] = useState<string | null>(null)
   const [inboxExpanded, setInboxExpanded] = useState(false)
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
-  // Agents needing attention: awaiting or error
-  const attentionAgents = useMemo(
-    () => agents.filter((a) => a.status === 'awaiting' || a.status === 'error'),
-    [agents]
-  )
+  // Agents needing attention: awaiting or error (filtered by workspace)
+  const attentionAgents = useMemo(() => {
+    let candidates = agents.filter((a) => a.status === 'awaiting' || a.status === 'error')
+    if (activeWorkspaceId) {
+      candidates = candidates.filter((a) => a.workspaceId === activeWorkspaceId)
+    }
+    return candidates
+  }, [agents, activeWorkspaceId])
 
-  // Active (non-archived) agents filtered by search
+  // Active (non-archived) agents filtered by workspace and search
   const filteredAgents = useMemo(() => {
-    const active = agents.filter((a) => a.status !== 'archived')
+    let active = agents.filter((a) => a.status !== 'archived')
+    // Filter by workspace if one is selected
+    if (activeWorkspaceId) {
+      active = active.filter((a) => a.workspaceId === activeWorkspaceId)
+    }
     if (!search) return active
     const q = search.toLowerCase()
     return active.filter(
@@ -60,7 +67,7 @@ export function AgentList(): JSX.Element {
         a.projectName.toLowerCase().includes(q) ||
         (a.roleLabel?.toLowerCase().includes(q) ?? false)
     )
-  }, [agents, search])
+  }, [agents, search, activeWorkspaceId])
 
   // Group by project
   const projectGroups = useMemo(() => {
