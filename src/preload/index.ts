@@ -97,6 +97,9 @@ const api: ElectronAPI = {
   getAgentProfile: (agentId) => ipcRenderer.invoke('agent:profile', agentId),
   readConfigFile: (filePath) => ipcRenderer.invoke('agent:readFile', filePath),
 
+  // SSH
+  testSshConnection: (config) => ipcRenderer.invoke('ssh:test', config),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (updates) => ipcRenderer.invoke('settings:update', updates),

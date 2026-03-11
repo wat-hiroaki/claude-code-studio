@@ -7,12 +7,14 @@ import { Database } from './database'
 import { ChainOrchestrator } from './chain-orchestrator'
 import { scanWorkspaces } from './workspace-scanner'
 import { readAgentProfile, readFileContent } from './claude-config-reader'
+import { SshSessionManager } from './ssh-session-manager'
 import type { CreateAgentParams } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let sessionManager: SessionManager
 let ptySessionManager: PtySessionManager
+let sshSessionManager: SshSessionManager
 let database: Database
 let chainOrchestrator: ChainOrchestrator
 
@@ -320,6 +322,69 @@ function setupIPC(): void {
     database.setActiveWorkspace(id === null ? null : String(id))
   })
 
+  // SSH test connection
+  ipcMain.handle('ssh:test', async (_event, config: Record<string, unknown>) => {
+    const { Client } = await import('ssh2')
+    const { readFileSync } = await import('fs')
+
+    return new Promise<{ success: boolean; message: string }>((resolve) => {
+      const client = new Client()
+      const timeout = setTimeout(() => {
+        client.end()
+        resolve({ success: false, message: 'Connection timed out' })
+      }, 10000)
+
+      client.on('ready', () => {
+        clearTimeout(timeout)
+        // Check for tmux and claude
+        client.exec('which tmux && which claude && echo "OK"', (err, stream) => {
+          if (err) {
+            client.end()
+            resolve({ success: true, message: 'Connected (could not check prerequisites)' })
+            return
+          }
+          let output = ''
+          stream.on('data', (data: Buffer) => { output += data.toString() })
+          stream.on('close', () => {
+            client.end()
+            const hasTmux = output.includes('tmux')
+            const hasClaude = output.includes('claude')
+            const ok = output.includes('OK')
+            if (ok) {
+              resolve({ success: true, message: 'Connected. tmux and claude found.' })
+            } else {
+              const missing = []
+              if (!hasTmux) missing.push('tmux')
+              if (!hasClaude) missing.push('claude')
+              resolve({ success: true, message: `Connected. Missing: ${missing.join(', ')}` })
+            }
+          })
+        })
+      })
+
+      client.on('error', (err) => {
+        clearTimeout(timeout)
+        resolve({ success: false, message: err.message })
+      })
+
+      const connectConfig: Record<string, unknown> = {
+        host: String(config.host || ''),
+        port: Number(config.port || 22),
+        username: String(config.username || ''),
+        readyTimeout: 10000
+      }
+      if (config.privateKeyPath) {
+        try {
+          connectConfig.privateKey = readFileSync(String(config.privateKeyPath))
+        } catch {
+          resolve({ success: false, message: `Cannot read key: ${config.privateKeyPath}` })
+          return
+        }
+      }
+      client.connect(connectConfig)
+    })
+  })
+
   // Workspace scanner
   ipcMain.handle('workspace:scan', async (_event, rootPath: string) => {
     if (typeof rootPath !== 'string' || !rootPath.trim()) {
@@ -426,6 +491,29 @@ app.whenReady().then(() => {
     }
   )
 
+  sshSessionManager = new SshSessionManager(
+    database,
+    (agentId, data) => {
+      mainWindow?.webContents.send('pty:data', agentId, data)
+    },
+    (agentId, status) => {
+      mainWindow?.webContents.send('agent:status-change', agentId, status)
+      chainOrchestrator?.handleStatusChange(agentId, status)
+      if (status === 'awaiting' || status === 'error') {
+        const agent = database.getAgent(agentId)
+        if (agent) {
+          const title = status === 'awaiting' ? 'Approval Required' : 'Error Occurred'
+          const body = `${agent.name}: ${agent.currentTask || 'Check agent for details'}`
+          new Notification({ title, body }).show()
+          mainWindow?.webContents.send('notification', title, body)
+        }
+      }
+    },
+    (agentId, exitCode) => {
+      mainWindow?.webContents.send('pty:exit', agentId, exitCode)
+    }
+  )
+
   chainOrchestrator = new ChainOrchestrator(database, sessionManager)
 
   setupIPC()
@@ -449,6 +537,7 @@ app.on('before-quit', () => {
   app.isQuitting = true
   sessionManager.stopAll()
   ptySessionManager.stopAll()
+  sshSessionManager.stopAll()
   database.close()
 })
 

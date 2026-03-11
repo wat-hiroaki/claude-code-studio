@@ -247,6 +247,9 @@ export interface ElectronAPI {
   getAgentProfile: (agentId: string) => Promise<AgentProfileData>
   readConfigFile: (filePath: string) => Promise<string>
 
+  // SSH
+  testSshConnection: (config: { host: string; port: number; username: string; privateKeyPath?: string }) => Promise<{ success: boolean; message: string }>
+
   // Settings
   getSettings: () => Promise<AppSettings>
   updateSettings: (updates: Partial<AppSettings>) => Promise<AppSettings>
