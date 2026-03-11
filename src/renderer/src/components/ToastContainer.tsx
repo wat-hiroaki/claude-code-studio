@@ -12,8 +12,20 @@ interface Toast {
 let toastId = 0
 const listeners: Set<(toast: Toast) => void> = new Set()
 
-export function showToast(title: string, body: string, type: Toast['type'] = 'info'): void {
-  const toast: Toast = { id: ++toastId, title, body, type }
+export function showToast(message: string, type: Toast['type']): void
+export function showToast(title: string, body: string, type: Toast['type']): void
+export function showToast(titleOrMessage: string, bodyOrType: string, maybeType?: Toast['type']): void {
+  let toast: Toast
+  if (maybeType !== undefined) {
+    // 3-arg: (title, body, type)
+    toast = { id: ++toastId, title: titleOrMessage, body: bodyOrType, type: maybeType }
+  } else if (['info', 'success', 'warning', 'error'].includes(bodyOrType)) {
+    // 2-arg: (message, type)
+    toast = { id: ++toastId, title: titleOrMessage, body: '', type: bodyOrType as Toast['type'] }
+  } else {
+    // 2-arg: (title, body) with default type
+    toast = { id: ++toastId, title: titleOrMessage, body: bodyOrType, type: 'info' }
+  }
   listeners.forEach((fn) => fn(toast))
 }
 

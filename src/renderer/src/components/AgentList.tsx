@@ -15,7 +15,8 @@ import {
   Archive,
   Copy,
   Pin,
-  PinOff
+  PinOff,
+  Download
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { getStatusDot, getInitials } from '../lib/status'
@@ -188,6 +189,16 @@ export function AgentList(): JSX.Element {
       showToast(err instanceof Error ? err.message : String(err), 'error')
     }
   }, [agents, setSelectedAgent])
+
+  const handleExportTemplate = useCallback(async (agentId: string) => {
+    setContextMenu(null)
+    try {
+      const path = await window.api.exportAgentTemplate(agentId)
+      if (path) showToast(`Template exported to ${path}`, 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), 'error')
+    }
+  }, [])
 
   const handleCreateForProject = (projectName: string): void => {
     setCreateForProject(projectName)
@@ -431,6 +442,13 @@ export function AgentList(): JSX.Element {
             >
               <Copy size={12} />
               Duplicate
+            </button>
+            <button
+              onClick={() => handleExportTemplate(ctxAgent.id)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50 transition-colors"
+            >
+              <Download size={12} />
+              Export Template
             </button>
             <div className="border-t border-border/50 my-1" />
             <button

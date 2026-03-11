@@ -100,6 +100,14 @@ const api: ElectronAPI = {
   // SSH
   testSshConnection: (config) => ipcRenderer.invoke('ssh:test', config),
 
+  // Database
+  exportDatabase: () => ipcRenderer.invoke('db:export'),
+  getDatabasePath: () => ipcRenderer.invoke('db:path'),
+
+  // Agent templates
+  exportAgentTemplate: (agentId) => ipcRenderer.invoke('agent:exportTemplate', agentId),
+  importAgentTemplate: () => ipcRenderer.invoke('agent:importTemplate'),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (updates) => ipcRenderer.invoke('settings:update', updates),

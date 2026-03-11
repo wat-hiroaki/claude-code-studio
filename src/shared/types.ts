@@ -177,6 +177,15 @@ export interface AgentProfileData {
   hooks: ClaudeHook[]
 }
 
+export interface AgentTemplate {
+  name: string
+  roleLabel: string | null
+  systemPrompt: string | null
+  skills: string[]
+  exportedAt: string
+  appVersion: string
+}
+
 export interface AppSettings {
   usePtyMode: boolean
 }
@@ -253,6 +262,14 @@ export interface ElectronAPI {
   // Settings
   getSettings: () => Promise<AppSettings>
   updateSettings: (updates: Partial<AppSettings>) => Promise<AppSettings>
+
+  // Database
+  exportDatabase: () => Promise<string | null>
+  getDatabasePath: () => Promise<string>
+
+  // Agent templates
+  exportAgentTemplate: (agentId: string) => Promise<string>
+  importAgentTemplate: () => Promise<AgentTemplate | null>
 
   // App
   getAppVersion: () => Promise<string>

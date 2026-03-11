@@ -481,6 +481,62 @@ function setupIPC(): void {
     return database.updateSettings(updates)
   })
 
+  // Database backup/export
+  ipcMain.handle('db:export', async () => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow!, {
+      defaultPath: `claude-code-desktop-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'Database Backup', extensions: ['json'] }]
+    })
+    if (canceled || !filePath) return null
+    const { writeFileSync } = await import('fs')
+    writeFileSync(filePath, database.exportData(), 'utf-8')
+    return filePath
+  })
+
+  ipcMain.handle('db:path', () => {
+    return database.getDbPath()
+  })
+
+  // Agent templates
+  ipcMain.handle('agent:exportTemplate', async (_event, agentId: string) => {
+    if (typeof agentId !== 'string') throw new Error('Invalid agent ID')
+    const agent = database.getAgent(agentId)
+    if (!agent) throw new Error('Agent not found')
+    const template: import('@shared/types').AgentTemplate = {
+      name: agent.name,
+      roleLabel: agent.roleLabel,
+      systemPrompt: agent.systemPrompt,
+      skills: agent.skills,
+      exportedAt: new Date().toISOString(),
+      appVersion: app.getVersion()
+    }
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow!, {
+      defaultPath: `${agent.name.replace(/\s+/g, '-').toLowerCase()}-template.json`,
+      filters: [{ name: 'Agent Template', extensions: ['json'] }]
+    })
+    if (canceled || !filePath) return ''
+    const { writeFileSync } = await import('fs')
+    writeFileSync(filePath, JSON.stringify(template, null, 2), 'utf-8')
+    return filePath
+  })
+
+  ipcMain.handle('agent:importTemplate', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
+      filters: [{ name: 'Agent Template', extensions: ['json'] }],
+      properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    const { readFileSync } = await import('fs')
+    try {
+      const content = readFileSync(filePaths[0], 'utf-8')
+      const template = JSON.parse(content) as import('@shared/types').AgentTemplate
+      if (!template.name || !template.exportedAt) throw new Error('Invalid template format')
+      return template
+    } catch {
+      throw new Error('Failed to parse agent template file')
+    }
+  })
+
   ipcMain.handle('app:titlebar-theme', (_event, isDark: boolean) => {
     if (!mainWindow) return
     mainWindow.setTitleBarOverlay({

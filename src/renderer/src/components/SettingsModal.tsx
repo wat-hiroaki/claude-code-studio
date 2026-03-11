@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
-import { X, Moon, Sun, Monitor, Globe, Bell, Terminal } from 'lucide-react'
+import { X, Moon, Sun, Monitor, Globe, Bell, Terminal, Database, FolderOpen } from 'lucide-react'
+import { showToast } from './ToastContainer'
 import { cn } from '../lib/utils'
 
 interface SettingsModalProps {
@@ -180,6 +181,41 @@ export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
                   />
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* Data Management */}
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium mb-3">
+              <Database size={16} />
+              Data
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const path = await window.api.exportDatabase()
+                    if (path) showToast(`Backup saved to ${path}`, 'success')
+                  } catch (err) {
+                    showToast(err instanceof Error ? err.message : String(err), 'error')
+                  }
+                }}
+                className="flex-1 py-2 px-3 rounded-lg text-sm border border-border hover:bg-accent transition-colors"
+              >
+                Export Backup
+              </button>
+              <button
+                onClick={async () => {
+                  const dbPath = await window.api.getDatabasePath()
+                  const parts = dbPath.replace(/\\/g, '/').split('/')
+                  parts.pop()
+                  showToast(`Data: ${parts.join('/')}`, 'info')
+                }}
+                className="flex items-center gap-1 py-2 px-3 rounded-lg text-sm border border-border hover:bg-accent transition-colors"
+              >
+                <FolderOpen size={12} />
+                Data Location
+              </button>
             </div>
           </div>
 

@@ -68,6 +68,14 @@ export class Database {
     renameSync(tmpPath, this.dbPath)
   }
 
+  exportData(): string {
+    return JSON.stringify(this.data, null, 2)
+  }
+
+  getDbPath(): string {
+    return this.dbPath
+  }
+
   // Agents
   createAgent(params: CreateAgentParams): Agent {
     const id = uuidv4()

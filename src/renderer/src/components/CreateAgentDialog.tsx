@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
-import { X, FolderOpen, Server } from 'lucide-react'
+import { X, FolderOpen, Server, Upload } from 'lucide-react'
+import { showToast } from './ToastContainer'
 import type { DiscoveredWorkspace, Workspace } from '@shared/types'
 
 interface CreateAgentDialogProps {
@@ -91,9 +92,32 @@ export function CreateAgentDialog({ onClose, prefill }: CreateAgentDialogProps):
       <div className="bg-card border border-border rounded-xl w-[480px] max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">{t('agent.new')}</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-accent">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={async () => {
+                try {
+                  const template = await window.api.importAgentTemplate()
+                  if (template) {
+                    setName(template.name)
+                    setRoleLabel(template.roleLabel ?? '')
+                    setSystemPrompt(template.systemPrompt ?? '')
+                    setSkillsInput(template.skills.join(', '))
+                    showToast(`Template "${template.name}" loaded`, 'success')
+                  }
+                } catch (err) {
+                  showToast(err instanceof Error ? err.message : String(err), 'error')
+                }
+              }}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-accent text-muted-foreground transition-colors"
+              title="Import from template"
+            >
+              <Upload size={12} />
+              Template
+            </button>
+            <button onClick={onClose} className="p-1 rounded hover:bg-accent">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="p-4 space-y-4">
