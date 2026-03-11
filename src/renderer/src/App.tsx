@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { useAppStore } from './stores/useAppStore'
 import { TitleBar } from './components/TitleBar'
 import { AgentList } from './components/AgentList'
-import { ChatArea } from './components/ChatArea'
+import { TerminalView } from './components/TerminalView'
 import { ContextPane } from './components/ContextPane'
 import { Dashboard } from './components/Dashboard'
 import { BroadcastModal } from './components/BroadcastModal'
@@ -11,7 +11,77 @@ import { ToastContainer, showToast } from './components/ToastContainer'
 import { QuickSearch } from './components/QuickSearch'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { WorkspaceScanner } from './components/WorkspaceScanner'
+import { cn } from './lib/utils'
 import type { DiscoveredWorkspace } from '@shared/types'
+
+function PaneGrid(): JSX.Element {
+  const { selectedAgentId, paneLayout, paneAgentIds, setPaneAgent, agents } = useAppStore()
+
+  // For single pane, use selectedAgentId directly
+  // For multi-pane, use paneAgentIds
+  useEffect(() => {
+    if (paneLayout === 1) return
+    // Auto-assign selected agent to first empty pane
+    if (selectedAgentId && !paneAgentIds.includes(selectedAgentId)) {
+      const emptyIdx = paneAgentIds.findIndex((id) => !id)
+      if (emptyIdx !== -1) {
+        setPaneAgent(emptyIdx, selectedAgentId)
+      }
+    }
+  }, [selectedAgentId, paneLayout, paneAgentIds, setPaneAgent])
+
+  if (paneLayout === 1) {
+    if (!selectedAgentId) {
+      return (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          Select an agent to start
+        </div>
+      )
+    }
+    return <TerminalView agentId={selectedAgentId} />
+  }
+
+  const paneCount = paneLayout
+  const gridClass = paneLayout === 2
+    ? 'grid grid-cols-2 gap-px'
+    : 'grid grid-cols-2 grid-rows-2 gap-px'
+
+  return (
+    <div className={cn('flex-1 overflow-hidden bg-border', gridClass)}>
+      {Array.from({ length: paneCount }).map((_, i) => {
+        const agentId = paneAgentIds[i]
+        if (!agentId) {
+          return (
+            <div key={i} className="flex flex-col items-center justify-center bg-card text-muted-foreground gap-2">
+              <p className="text-xs">Pane {i + 1}</p>
+              <div className="flex flex-wrap gap-1 max-w-[200px] justify-center">
+                {agents
+                  .filter((a) => a.status !== 'archived')
+                  .map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => setPaneAgent(i, a.id)}
+                      className="text-[10px] px-2 py-1 rounded bg-secondary hover:bg-accent transition-colors"
+                    >
+                      {a.name}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )
+        }
+        return (
+          <TerminalView
+            key={`${i}-${agentId}`}
+            agentId={agentId}
+            compact={paneLayout === 4}
+            onClose={() => setPaneAgent(i, null)}
+          />
+        )
+      })}
+    </div>
+  )
+}
 
 export function App(): JSX.Element {
   const {
@@ -86,27 +156,22 @@ export function App(): JSX.Element {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
-      // Ctrl+D — Toggle dashboard
       if (e.ctrlKey && !e.shiftKey && e.key === 'd') {
         e.preventDefault()
         toggleDashboard()
       }
-      // Ctrl+Shift+B — Broadcast
       if (e.ctrlKey && e.shiftKey && e.key === 'B') {
         e.preventDefault()
         toggleBroadcast()
       }
-      // Ctrl+Shift+P — Right pane
       if (e.ctrlKey && e.shiftKey && e.key === 'P') {
         e.preventDefault()
         toggleRightPane()
       }
-      // Ctrl+N — New agent
       if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
         e.preventDefault()
         setShowCreateDialog(true)
       }
-      // Ctrl+Tab / Ctrl+Shift+Tab — Navigate agents
       if (e.ctrlKey && e.key === 'Tab') {
         e.preventDefault()
         if (agents.length === 0) return
@@ -116,7 +181,6 @@ export function App(): JSX.Element {
           : (currentIdx + 1) % agents.length
         setSelectedAgent(agents[nextIdx].id)
       }
-      // Ctrl+1-9 — Jump to agent by index
       if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
         e.preventDefault()
         const idx = parseInt(e.key) - 1
@@ -124,7 +188,6 @@ export function App(): JSX.Element {
           setSelectedAgent(agents[idx].id)
         }
       }
-      // Ctrl+W — Archive current agent
       if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
         e.preventDefault()
         if (selectedAgentId) {
@@ -151,7 +214,7 @@ export function App(): JSX.Element {
         ) : (
           <>
             <AgentList />
-            <ChatArea />
+            <PaneGrid />
             {showRightPane && <ContextPane />}
           </>
         )}

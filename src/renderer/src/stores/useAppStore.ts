@@ -28,6 +28,12 @@ interface AppState {
   toggleRightPane: () => void
   toggleBroadcast: () => void
 
+  // Layout
+  paneLayout: 1 | 2 | 4
+  paneAgentIds: (string | null)[]
+  setPaneLayout: (layout: 1 | 2 | 4) => void
+  setPaneAgent: (paneIndex: number, agentId: string | null) => void
+
   // Theme
   theme: 'dark' | 'light' | 'system'
   setTheme: (theme: 'dark' | 'light' | 'system') => void
@@ -71,6 +77,17 @@ export const useAppStore = create<AppState>((set) => ({
   toggleDashboard: () => set((s) => ({ showDashboard: !s.showDashboard })),
   toggleRightPane: () => set((s) => ({ showRightPane: !s.showRightPane })),
   toggleBroadcast: () => set((s) => ({ showBroadcast: !s.showBroadcast })),
+
+  // Layout
+  paneLayout: 1,
+  paneAgentIds: [null, null, null, null],
+  setPaneLayout: (layout) => set({ paneLayout: layout }),
+  setPaneAgent: (paneIndex, agentId) =>
+    set((state) => {
+      const ids = [...state.paneAgentIds]
+      ids[paneIndex] = agentId
+      return { paneAgentIds: ids }
+    }),
 
   // Theme
   theme: (localStorage.getItem('theme') as 'dark' | 'light' | 'system') || 'dark',

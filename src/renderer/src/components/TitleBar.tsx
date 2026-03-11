@@ -2,17 +2,27 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { SettingsModal } from './SettingsModal'
+import { cn } from '../lib/utils'
 import {
   LayoutDashboard,
   Radio,
   PanelRight,
-  Settings
+  Settings,
+  Square,
+  Columns2,
+  LayoutGrid
 } from 'lucide-react'
 
 export function TitleBar(): JSX.Element {
   const { t } = useTranslation()
-  const { toggleDashboard, toggleRightPane, toggleBroadcast, showDashboard } = useAppStore()
+  const { toggleDashboard, toggleRightPane, toggleBroadcast, showDashboard, paneLayout, setPaneLayout } = useAppStore()
   const [showSettings, setShowSettings] = useState(false)
+
+  const layoutOptions: { layout: 1 | 2 | 4; icon: typeof Square; label: string }[] = [
+    { layout: 1, icon: Square, label: '1' },
+    { layout: 2, icon: Columns2, label: '2' },
+    { layout: 4, icon: LayoutGrid, label: '4' }
+  ]
 
   return (
     <>
@@ -23,6 +33,25 @@ export function TitleBar(): JSX.Element {
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Layout switcher */}
+          <div className="flex items-center bg-secondary rounded p-0.5 mr-1">
+            {layoutOptions.map(({ layout, icon: Icon, label }) => (
+              <button
+                key={layout}
+                onClick={() => setPaneLayout(layout)}
+                className={cn(
+                  'p-1 rounded transition-colors',
+                  paneLayout === layout
+                    ? 'bg-card shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                title={`${label} panel${layout > 1 ? 's' : ''}`}
+              >
+                <Icon size={12} />
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={toggleDashboard}
             className={`p-1.5 rounded hover:bg-accent transition-colors ${showDashboard ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
