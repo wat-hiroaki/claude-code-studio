@@ -169,6 +169,21 @@
       "errors": "エラー"
     }
   },
+  "workspace": {
+    "title": "ワークスペーススキャナー",
+    "description": "ディレクトリをスキャンして、Claude Code設定ファイル（CLAUDE.md, .claude/, AGENTS.md）を持つプロジェクトを検出します。",
+    "rootPlaceholder": "スキャンするルートディレクトリを選択...",
+    "scan": "スキャン",
+    "scanning": "ディレクトリをスキャン中...",
+    "noResults": "このディレクトリにClaude Codeワークスペースは見つかりませんでした。",
+    "hint": "フォルダを選択してClaude Codeプロジェクトを検出します。",
+    "scanFromFolder": "フォルダを選択してスキャン",
+    "found": "{{count}} 件のワークスペースが見つかりました",
+    "preview": "プレビュー",
+    "detectedFiles": "検出ファイル",
+    "createAgent": "このプロジェクトからエージェントを作成",
+    "button": "ワークスペーススキャン"
+  },
   "common": {
     "create": "作成",
     "cancel": "キャンセル",

@@ -96,6 +96,20 @@ export interface ParsedOutputMessage {
   metadata?: Record<string, unknown>
 }
 
+export interface DiscoveredWorkspace {
+  path: string
+  name: string
+  detectedFiles: {
+    claudeMd: boolean
+    claudeDir: boolean
+    agentsMd: boolean
+    packageJson: boolean
+  }
+  claudeMdPreview: string | null
+  techStack: string[]
+  lastModified: string
+}
+
 export interface ElectronAPI {
   // Agent management
   createAgent: (params: CreateAgentParams) => Promise<Agent>
@@ -137,6 +151,9 @@ export interface ElectronAPI {
   onAgentOutput: (callback: (agentId: string, message: ParsedOutputMessage) => void) => () => void
   onAgentStatusChange: (callback: (agentId: string, status: AgentStatus) => void) => () => void
   onNotification: (callback: (title: string, body: string) => void) => () => void
+
+  // Workspace scanner
+  scanWorkspaces: (rootPath: string) => Promise<DiscoveredWorkspace[]>
 
   // App
   getAppVersion: () => Promise<string>

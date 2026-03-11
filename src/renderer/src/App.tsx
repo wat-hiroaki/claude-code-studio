@@ -10,6 +10,8 @@ import { CreateAgentDialog } from './components/CreateAgentDialog'
 import { ToastContainer, showToast } from './components/ToastContainer'
 import { QuickSearch } from './components/QuickSearch'
 import { WelcomeScreen } from './components/WelcomeScreen'
+import { WorkspaceScanner } from './components/WorkspaceScanner'
+import type { DiscoveredWorkspace } from '@shared/types'
 
 export function App(): JSX.Element {
   const {
@@ -28,6 +30,8 @@ export function App(): JSX.Element {
   } = useAppStore()
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showWorkspaceScanner, setShowWorkspaceScanner] = useState(false)
+  const [prefillWorkspace, setPrefillWorkspace] = useState<DiscoveredWorkspace | null>(null)
 
   const loadAgents = useCallback(async () => {
     const agentList = await window.api.getAgents()
@@ -139,11 +143,11 @@ export function App(): JSX.Element {
     <div className="flex flex-col h-screen overflow-hidden">
       <TitleBar />
 
-      {showDashboard && <Dashboard />}
+      {showDashboard && <Dashboard onOpenScanner={() => setShowWorkspaceScanner(true)} />}
 
       <div className="flex flex-1 overflow-hidden">
         {agents.length === 0 ? (
-          <WelcomeScreen onCreateAgent={() => setShowCreateDialog(true)} />
+          <WelcomeScreen onCreateAgent={() => setShowCreateDialog(true)} onOpenScanner={() => setShowWorkspaceScanner(true)} />
         ) : (
           <>
             <AgentList />
@@ -156,7 +160,25 @@ export function App(): JSX.Element {
       <BroadcastModal />
       <ToastContainer />
       <QuickSearch />
-      {showCreateDialog && <CreateAgentDialog onClose={() => setShowCreateDialog(false)} />}
+      {showCreateDialog && (
+        <CreateAgentDialog
+          onClose={() => {
+            setShowCreateDialog(false)
+            setPrefillWorkspace(null)
+          }}
+          prefill={prefillWorkspace}
+        />
+      )}
+      {showWorkspaceScanner && (
+        <WorkspaceScanner
+          onClose={() => setShowWorkspaceScanner(false)}
+          onCreateAgent={(ws) => {
+            setShowWorkspaceScanner(false)
+            setPrefillWorkspace(ws)
+            setShowCreateDialog(true)
+          }}
+        />
+      )}
     </div>
   )
 }

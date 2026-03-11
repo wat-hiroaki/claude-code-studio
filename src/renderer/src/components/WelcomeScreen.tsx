@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { Bot, Plus, Keyboard, Radio, LayoutDashboard } from 'lucide-react'
+import { Bot, Plus, Keyboard, Radio, LayoutDashboard, HardDrive } from 'lucide-react'
 
 interface WelcomeScreenProps {
   onCreateAgent: () => void
+  onOpenScanner?: () => void
 }
 
-export function WelcomeScreen({ onCreateAgent }: WelcomeScreenProps): JSX.Element {
+export function WelcomeScreen({ onCreateAgent, onOpenScanner }: WelcomeScreenProps): JSX.Element {
   const { t } = useTranslation()
 
   return (
@@ -27,14 +28,25 @@ export function WelcomeScreen({ onCreateAgent }: WelcomeScreenProps): JSX.Elemen
           {t('welcome.description')}
         </p>
 
-        {/* Create agent CTA */}
-        <button
-          onClick={onCreateAgent}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-        >
-          <Plus size={16} />
-          {t('agent.new')}
-        </button>
+        {/* CTAs */}
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={onCreateAgent}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+          >
+            <Plus size={16} />
+            {t('agent.new')}
+          </button>
+          {onOpenScanner && (
+            <button
+              onClick={onOpenScanner}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-foreground rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+            >
+              <HardDrive size={16} />
+              {t('workspace.button')}
+            </button>
+          )}
+        </div>
 
         {/* Shortcuts hint */}
         <div className="grid grid-cols-2 gap-3 pt-4 text-left">

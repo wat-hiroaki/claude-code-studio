@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { SessionManager } from './session-manager'
 import { Database } from './database'
 import { ChainOrchestrator } from './chain-orchestrator'
+import { scanWorkspaces } from './workspace-scanner'
 import type { CreateAgentParams } from '@shared/types'
 
 let mainWindow: BrowserWindow | null = null
@@ -257,6 +258,14 @@ function setupIPC(): void {
   // App
   ipcMain.handle('app:version', () => {
     return app.getVersion()
+  })
+
+  // Workspace scanner
+  ipcMain.handle('workspace:scan', async (_event, rootPath: string) => {
+    if (typeof rootPath !== 'string' || !rootPath.trim()) {
+      throw new Error('rootPath is required')
+    }
+    return scanWorkspaces(rootPath.trim())
   })
 
   ipcMain.handle('app:titlebar-theme', (_event, isDark: boolean) => {

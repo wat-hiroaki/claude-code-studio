@@ -2,20 +2,22 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { X, FolderOpen } from 'lucide-react'
+import type { DiscoveredWorkspace } from '@shared/types'
 
 interface CreateAgentDialogProps {
   onClose: () => void
+  prefill?: DiscoveredWorkspace | null
 }
 
-export function CreateAgentDialog({ onClose }: CreateAgentDialogProps): JSX.Element {
+export function CreateAgentDialog({ onClose, prefill }: CreateAgentDialogProps): JSX.Element {
   const { t } = useTranslation()
   const { agents, addAgent, setSelectedAgent } = useAppStore()
-  const [name, setName] = useState('')
-  const [projectPath, setProjectPath] = useState('')
-  const [projectName, setProjectName] = useState('')
+  const [name, setName] = useState(prefill?.name || '')
+  const [projectPath, setProjectPath] = useState(prefill?.path || '')
+  const [projectName, setProjectName] = useState(prefill?.name || '')
   const [roleLabel, setRoleLabel] = useState('')
   const [systemPrompt, setSystemPrompt] = useState('')
-  const [skillsInput, setSkillsInput] = useState('')
+  const [skillsInput, setSkillsInput] = useState(prefill?.techStack.join(', ') || '')
   const [reportTo, setReportTo] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

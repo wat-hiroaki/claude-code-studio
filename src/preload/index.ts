@@ -61,6 +61,9 @@ const api: ElectronAPI = {
     return () => ipcRenderer.removeListener('notification', handler)
   },
 
+  // Workspace scanner
+  scanWorkspaces: (rootPath) => ipcRenderer.invoke('workspace:scan', rootPath),
+
   // App
   getAppVersion: () => ipcRenderer.invoke('app:version'),
   getPlatform: () => process.platform,

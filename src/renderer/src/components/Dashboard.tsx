@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import {
   Users, AlertCircle, XCircle, CheckCircle2, FileText,
-  Network, BarChart3, Columns3, Plus, X
+  Network, BarChart3, Columns3, Plus, X, HardDrive
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { ActivityLog } from './ActivityLog'
@@ -15,7 +15,11 @@ import type { Team } from '@shared/types'
 
 type DashboardView = 'orgChart' | 'skillMap' | 'kanban'
 
-export function Dashboard(): JSX.Element {
+interface DashboardProps {
+  onOpenScanner?: () => void
+}
+
+export function Dashboard({ onOpenScanner }: DashboardProps): JSX.Element {
   const { t } = useTranslation()
   const { teamStats, setSelectedAgent, toggleDashboard } = useAppStore()
   const [showDailyReport, setShowDailyReport] = useState(false)
@@ -66,6 +70,15 @@ export function Dashboard(): JSX.Element {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">{t('teamMgmt.title')}</h2>
         <div className="flex items-center gap-2">
+          {onOpenScanner && (
+            <button
+              onClick={onOpenScanner}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-secondary hover:bg-accent transition-colors"
+            >
+              <HardDrive size={14} />
+              {t('workspace.button')}
+            </button>
+          )}
           <button
             onClick={() => setShowDailyReport(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-secondary hover:bg-accent transition-colors"

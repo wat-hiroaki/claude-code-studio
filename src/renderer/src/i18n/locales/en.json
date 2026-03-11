@@ -169,6 +169,21 @@
       "errors": "Errors"
     }
   },
+  "workspace": {
+    "title": "Workspace Scanner",
+    "description": "Scan directories to discover projects with Claude Code configuration files (CLAUDE.md, .claude/, AGENTS.md).",
+    "rootPlaceholder": "Select a root directory to scan...",
+    "scan": "Scan",
+    "scanning": "Scanning directories...",
+    "noResults": "No Claude Code workspaces found in this directory.",
+    "hint": "Select a folder to discover Claude Code projects.",
+    "scanFromFolder": "Browse and scan a folder",
+    "found": "{{count}} workspace(s) found",
+    "preview": "Preview",
+    "detectedFiles": "Detected",
+    "createAgent": "Create Agent from this project",
+    "button": "Scan Workspaces"
+  },
   "common": {
     "create": "Create",
     "cancel": "Cancel",
