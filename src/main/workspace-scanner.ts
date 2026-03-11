@@ -1,14 +1,23 @@
-import { readdir, stat, readFile, access } from 'fs/promises'
+import { readdir, lstat, readFile, access } from 'fs/promises'
 import { join, basename } from 'path'
 import type { DiscoveredWorkspace } from '@shared/types'
 
+// Directories to never recurse into
 const SKIP_DIRS = new Set([
   'node_modules', '.git', '.next', 'dist', 'build', 'out',
   '.cache', '.turbo', '.vercel', '.output', 'coverage',
-  '__pycache__', '.venv', 'venv', '.idea', '.vscode'
+  '__pycache__', '.venv', 'venv', '.idea', '.vscode',
+  // Windows system/app folders (huge, no Claude projects)
+  'AppData', 'Application Data', 'Local Settings',
+  'Cookies', 'NetHood', 'PrintHood', 'Recent', 'SendTo',
+  'Templates', 'My Documents', 'Saved Games', 'Searches',
+  'Favorites', 'Links', 'Contacts', 'Music', 'Pictures',
+  'Videos', 'OneDrive', 'Downloads', 'npm-cache',
+  // macOS
+  'Library', 'Applications'
 ])
 
-const MAX_DEPTH = 5
+const MAX_DEPTH = 4
 const CLAUDE_MD_PREVIEW_LINES = 5
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -104,7 +113,7 @@ async function scanDirectory(
 
     let lastModified = new Date().toISOString()
     try {
-      const s = await stat(dirPath)
+      const s = await lstat(dirPath)
       lastModified = s.mtime.toISOString()
     } catch { /* ignore */ }
 
@@ -128,7 +137,9 @@ async function scanDirectory(
     if (SKIP_DIRS.has(entry) || entry.startsWith('.')) continue
     const fullPath = join(dirPath, entry)
     try {
-      const s = await stat(fullPath)
+      const s = await lstat(fullPath)
+      // Skip symlinks entirely to avoid EPERM and loops
+      if (s.isSymbolicLink()) continue
       if (s.isDirectory()) {
         await scanDirectory(fullPath, depth + 1, results)
       }
@@ -137,7 +148,6 @@ async function scanDirectory(
 }
 
 export async function scanWorkspaces(rootPath: string): Promise<DiscoveredWorkspace[]> {
-  // Also scan ~/.claude for global config
   const results: DiscoveredWorkspace[] = []
 
   // Check if the .claude global directory exists
@@ -146,14 +156,15 @@ export async function scanWorkspaces(rootPath: string): Promise<DiscoveredWorksp
   if (await fileExists(globalClaudeDir)) {
     const globalClaude = join(userHome, 'CLAUDE.md')
     const hasGlobalMd = await fileExists(globalClaude)
+    const hasGlobalAgents = await fileExists(join(userHome, 'AGENTS.md'))
 
     results.push({
-      path: globalClaudeDir.replace(/\\/g, '/'),
-      name: '~/.claude (Global Config)',
+      path: userHome.replace(/\\/g, '/'),
+      name: '~/ (Global Config)',
       detectedFiles: {
         claudeMd: hasGlobalMd,
         claudeDir: true,
-        agentsMd: false,
+        agentsMd: hasGlobalAgents,
         packageJson: false
       },
       claudeMdPreview: hasGlobalMd ? await readPreview(globalClaude) : null,
