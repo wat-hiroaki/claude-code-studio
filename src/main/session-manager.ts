@@ -118,7 +118,8 @@ export class SessionManager {
       args.push('--system-prompt', agent.systemPrompt)
     }
 
-    const useShell = this.claudePath === 'claude'
+    // On Windows, .cmd/.bat files require shell: true to spawn correctly
+    const useShell = process.platform === 'win32' || this.claudePath === 'claude'
     const proc = spawn(this.claudePath, args, {
       cwd: agent.projectPath,
       env: { ...process.env },
