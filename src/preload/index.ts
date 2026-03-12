@@ -70,6 +70,7 @@ const api: ElectronAPI = {
 
   // Workspace scanner
   scanWorkspaces: (rootPath) => ipcRenderer.invoke('workspace:scan', rootPath),
+  scanRemoteWorkspaces: (sshConfig, rootPath) => ipcRenderer.invoke('workspace:scan-remote', sshConfig, rootPath),
 
   // PTY terminal
   ptyStart: (agentId) => ipcRenderer.invoke('pty:start', agentId),

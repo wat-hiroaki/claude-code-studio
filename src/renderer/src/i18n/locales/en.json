@@ -265,7 +265,16 @@
     "username": "Username",
     "privateKey": "Private Key (optional)",
     "testing": "Testing...",
-    "testConnection": "Test Connection"
+    "testConnection": "Test Connection",
+    "remote": "SSH Remote",
+    "sshDescription": "Scan remote server for Claude Code workspaces via SSH.",
+    "sshHost": "Host",
+    "sshPort": "Port",
+    "sshUsername": "Username",
+    "sshKeyPath": "Key path (optional)",
+    "sshRemotePath": "Remote path (e.g. /home/user)",
+    "sshHint": "Enter SSH connection details above to scan a remote server.",
+    "scanningRemote": "Connecting and scanning remote server..."
   },
   "files": {
     "title": "Changed Files",

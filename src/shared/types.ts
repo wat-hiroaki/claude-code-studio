@@ -238,6 +238,7 @@ export interface ElectronAPI {
 
   // Workspace scanner
   scanWorkspaces: (rootPath: string) => Promise<DiscoveredWorkspace[]>
+  scanRemoteWorkspaces: (sshConfig: { host: string; port: number; username: string; privateKeyPath?: string }, rootPath: string) => Promise<DiscoveredWorkspace[]>
 
   // Workspaces
   createWorkspace: (params: CreateWorkspaceParams) => Promise<Workspace>

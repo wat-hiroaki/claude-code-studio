@@ -176,3 +176,107 @@ export async function scanWorkspaces(rootPath: string): Promise<DiscoveredWorksp
   await scanDirectory(rootPath, 0, results)
   return results
 }
+
+/**
+ * Scan remote directories via SSH for Claude Code workspaces.
+ * Uses `find` command over SSH to detect .claude/, CLAUDE.md, AGENTS.md
+ */
+export async function scanRemoteWorkspaces(
+  sshConfig: { host: string; port: number; username: string; privateKeyPath?: string },
+  rootPath: string
+): Promise<DiscoveredWorkspace[]> {
+  const { Client } = await import('ssh2')
+  const { readFileSync } = await import('fs')
+
+  return new Promise((resolve, reject) => {
+    const client = new Client()
+    const connectConfig: Record<string, unknown> = {
+      host: sshConfig.host,
+      port: sshConfig.port || 22,
+      username: sshConfig.username,
+      readyTimeout: 15000
+    }
+
+    if (sshConfig.privateKeyPath) {
+      try {
+        connectConfig.privateKey = readFileSync(sshConfig.privateKeyPath)
+      } catch {
+        reject(new Error(`Cannot read SSH key: ${sshConfig.privateKeyPath}`))
+        return
+      }
+    }
+
+    client.on('ready', () => {
+      // Use find to detect CLAUDE.md, .claude dirs, and AGENTS.md up to depth 4
+      const cmd = [
+        `find "${rootPath}" -maxdepth 4 \\(`,
+        `-name "CLAUDE.md" -o -name ".claude" -o -name "AGENTS.md" -o -name "package.json"`,
+        `\\) -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null`
+      ].join(' ')
+
+      client.exec(cmd, (err, stream) => {
+        if (err) {
+          client.end()
+          reject(err)
+          return
+        }
+
+        let output = ''
+        stream.on('data', (data: Buffer) => {
+          output += data.toString()
+        })
+        stream.on('close', () => {
+          client.end()
+
+          const files = output.trim().split('\n').filter(Boolean)
+          const dirMap = new Map<string, {
+            claudeMd: boolean; claudeDir: boolean; agentsMd: boolean; packageJson: boolean
+          }>()
+
+          for (const filePath of files) {
+            // Get the parent directory of each detected file
+            const parts = filePath.split('/')
+            const fileName = parts.pop() || ''
+            const dirPath = parts.join('/')
+
+            if (!dirMap.has(dirPath)) {
+              dirMap.set(dirPath, { claudeMd: false, claudeDir: false, agentsMd: false, packageJson: false })
+            }
+            const entry = dirMap.get(dirPath)!
+
+            if (fileName === 'CLAUDE.md') entry.claudeMd = true
+            else if (fileName === '.claude') entry.claudeDir = true
+            else if (fileName === 'AGENTS.md') entry.agentsMd = true
+            else if (fileName === 'package.json') entry.packageJson = true
+          }
+
+          const results: DiscoveredWorkspace[] = []
+          for (const [dirPath, detected] of dirMap) {
+            // Only include directories that have Claude-related files
+            if (!detected.claudeMd && !detected.claudeDir && !detected.agentsMd) continue
+
+            const name = dirPath.split('/').pop() || dirPath
+            results.push({
+              path: dirPath,
+              name,
+              detectedFiles: detected,
+              claudeMdPreview: null, // Remote preview not supported yet
+              techStack: [],
+              lastModified: new Date().toISOString()
+            })
+          }
+
+          resolve(results)
+        })
+        stream.stderr.on('data', () => { /* ignore stderr */ })
+      })
+    })
+
+    client.on('error', (err) => {
+      reject(new Error(`SSH connection failed: ${err.message}`))
+    })
+
+    client.connect(connectConfig)
+  })
+}
+

@@ -5,7 +5,7 @@ import { SessionManager } from './session-manager'
 import { PtySessionManager } from './pty-session-manager'
 import { Database } from './database'
 import { ChainOrchestrator } from './chain-orchestrator'
-import { scanWorkspaces } from './workspace-scanner'
+import { scanWorkspaces, scanRemoteWorkspaces } from './workspace-scanner'
 import { readAgentProfile, readFileContent } from './claude-config-reader'
 import { SshSessionManager } from './ssh-session-manager'
 import type { CreateAgentParams } from '@shared/types'
@@ -467,6 +467,16 @@ function setupIPC(): void {
       throw new Error('rootPath is required')
     }
     return scanWorkspaces(rootPath.trim())
+  })
+
+  ipcMain.handle('workspace:scan-remote', async (_event, sshConfig: { host: string; port: number; username: string; privateKeyPath?: string }, rootPath: string) => {
+    if (!sshConfig || typeof sshConfig.host !== 'string') {
+      throw new Error('Valid SSH config is required')
+    }
+    if (typeof rootPath !== 'string' || !rootPath.trim()) {
+      throw new Error('rootPath is required')
+    }
+    return scanRemoteWorkspaces(sshConfig, rootPath.trim())
   })
 
   // Agent Profile

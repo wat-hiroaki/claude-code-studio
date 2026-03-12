@@ -265,7 +265,16 @@
     "username": "ユーザー名",
     "privateKey": "秘密鍵（オプション）",
     "testing": "テスト中...",
-    "testConnection": "接続テスト"
+    "testConnection": "接続テスト",
+    "remote": "SSHリモート",
+    "sshDescription": "SSH経由でリモートサーバーのClaude Codeワークスペースをスキャンします。",
+    "sshHost": "ホスト",
+    "sshPort": "ポート",
+    "sshUsername": "ユーザー名",
+    "sshKeyPath": "鍵パス（オプション）",
+    "sshRemotePath": "リモートパス（例: /home/user）",
+    "sshHint": "上のSSH接続情報を入力してリモートサーバーをスキャンします。",
+    "scanningRemote": "リモートサーバーに接続してスキャン中..."
   },
   "files": {
     "title": "変更ファイル",
