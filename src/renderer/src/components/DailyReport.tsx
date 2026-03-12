@@ -93,7 +93,7 @@ export function DailyReport({ onClose }: DailyReportProps): JSX.Element {
           activities.push(preview + (msg.content.length > 100 ? '...' : ''))
         } else if (msg.contentType === 'tool_exec') {
           const toolName = msg.content.split('\n')[0]?.replace(/[[\]]/g, '') ?? 'tool'
-          activities.push(`[Tool] ${toolName}`)
+          activities.push(`[${t('profile.tool', 'Tool')}] ${toolName}`)
         }
       }
 
