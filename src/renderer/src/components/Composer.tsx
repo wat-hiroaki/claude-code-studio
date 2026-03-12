@@ -147,7 +147,7 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
         e.currentTarget.classList.remove('ring-2', 'ring-primary/50')
         const files = Array.from(e.dataTransfer.files)
         if (files.length > 0) {
-          const paths = files.map((f) => f.path).filter(Boolean).join('\n')
+          const paths = files.map((f) => (f as unknown as { path?: string }).path).filter(Boolean).join('\n')
           if (paths) setValue((v) => v + (v ? '\n' : '') + paths)
         }
       }}
