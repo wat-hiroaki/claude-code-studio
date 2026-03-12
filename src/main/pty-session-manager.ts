@@ -15,6 +15,7 @@ interface PtySession {
   scrollbackBuffer: string
   lastStatus: AgentStatus
   lastOutputLine: string
+  _retryCount?: number
 }
 
 type PtyDataCallback = (agentId: string, data: string) => void
@@ -210,6 +211,29 @@ export class PtySessionManager {
       session.lastStatus = newStatus
       this.database.updateAgent(session.agentId, { status: newStatus })
       this.onStatusChange(session.agentId, newStatus)
+
+      // Auto-resolve session conflicts with new session ID
+      if (newStatus === 'session_conflict') {
+        const retryCount = session._retryCount || 0
+        if (retryCount < 2) {
+          const agent = this.database.getAgent(session.agentId)
+          if (agent) {
+            this.stopSession(session.agentId)
+            const newSessionId = uuidv4()
+            this.database.updateAgent(agent.id, { claudeSessionId: newSessionId })
+            const updatedAgent = { ...agent, claudeSessionId: newSessionId }
+            this.startSession(updatedAgent).then(() => {
+              const newSession = this.sessions.get(agent.id)
+              if (newSession) {
+                newSession._retryCount = retryCount + 1
+              }
+            }).catch(() => {
+              this.database.updateAgent(agent.id, { status: 'error' })
+              this.onStatusChange(agent.id, 'error')
+            })
+          }
+        }
+      }
 
       // Update currentTask for tool_running
       if (newStatus === 'tool_running') {

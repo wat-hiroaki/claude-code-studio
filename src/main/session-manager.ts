@@ -144,13 +144,40 @@ export class SessionManager {
     proc.stderr?.on('data', (chunk: string) => {
       // stderr is typically debug/error info
       if (chunk.includes('already in use') || chunk.includes('Session ID') && chunk.includes('in use')) {
-        // Session conflict: another instance is using this session ID
-        this.updateStatus(agent.id, 'session_conflict')
-        this.onOutput(agent.id, {
-          role: 'system',
-          contentType: 'error',
-          content: 'This session is active in another terminal. Restart the agent to create a new session.'
-        })
+        // Session conflict: auto-resolve by generating a new session ID and restarting
+        const retryCount = (session as Session & { _retryCount?: number })._retryCount || 0
+        if (retryCount < 2) {
+          this.onOutput(agent.id, {
+            role: 'system',
+            contentType: 'text',
+            content: 'Session conflict detected. Reconnecting with a new session...'
+          })
+          // Stop current process, generate new session ID, and restart
+          this.stopSession(agent.id).then(() => {
+            const newSessionId = uuidv4()
+            this.database.updateAgent(agent.id, { claudeSessionId: newSessionId } as Partial<Agent>)
+            const updatedAgent = { ...agent, claudeSessionId: newSessionId }
+            // Track retry count on next session
+            this.startSession(updatedAgent).then(() => {
+              const newSession = this.sessions.get(agent.id)
+              if (newSession) {
+                (newSession as Session & { _retryCount?: number })._retryCount = retryCount + 1
+              }
+            }).catch(() => {
+              this.updateStatus(agent.id, 'error')
+            })
+          }).catch(() => {
+            this.updateStatus(agent.id, 'error')
+          })
+        } else {
+          // Max retries exceeded
+          this.updateStatus(agent.id, 'session_conflict')
+          this.onOutput(agent.id, {
+            role: 'system',
+            contentType: 'error',
+            content: 'This session is active in another terminal. Restart the agent to create a new session.'
+          })
+        }
       } else if (chunk.includes('Error') || chunk.includes('error')) {
         this.updateStatus(agent.id, 'error')
         this.onOutput(agent.id, {
