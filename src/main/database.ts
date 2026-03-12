@@ -43,7 +43,8 @@ export class Database {
   private load(): DBData {
     if (existsSync(this.dbPath)) {
       try {
-        return JSON.parse(readFileSync(this.dbPath, 'utf-8'))
+        const raw = JSON.parse(readFileSync(this.dbPath, 'utf-8'))
+        return this.migrate(raw)
       } catch {
         // Corrupted file, start fresh
       }
@@ -59,6 +60,29 @@ export class Database {
       settings: { usePtyMode: true },
       nextMessageId: 1
     }
+  }
+
+  /** Backfill missing fields from older database formats */
+  private migrate(raw: Record<string, unknown>): DBData {
+    // Ensure all top-level arrays/fields exist
+    if (!Array.isArray(raw.workspaces)) raw.workspaces = []
+    if (raw.activeWorkspaceId === undefined) raw.activeWorkspaceId = null
+    if (!Array.isArray(raw.agents)) raw.agents = []
+    if (!Array.isArray(raw.teams)) raw.teams = []
+    if (!Array.isArray(raw.messages)) raw.messages = []
+    if (!Array.isArray(raw.taskChains)) raw.taskChains = []
+    if (!Array.isArray(raw.broadcasts)) raw.broadcasts = []
+    if (typeof raw.nextMessageId !== 'number') raw.nextMessageId = 1
+    if (!raw.settings || typeof raw.settings !== 'object') {
+      raw.settings = { usePtyMode: true }
+    }
+
+    // Backfill agent-level fields added after initial release
+    for (const agent of raw.agents as Record<string, unknown>[]) {
+      if (agent.workspaceId === undefined) agent.workspaceId = null
+    }
+
+    return raw as unknown as DBData
   }
 
   private save(): void {
