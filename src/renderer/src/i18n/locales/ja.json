@@ -27,6 +27,7 @@
       "tool_running": "実行中...",
       "awaiting": "承認待ち",
       "error": "エラー",
+      "session_conflict": "他で使用中",
       "idle": "休憩中",
       "archived": "退勤済み"
     },

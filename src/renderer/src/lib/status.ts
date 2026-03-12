@@ -37,6 +37,11 @@ const statusStyles: Record<AgentStatus, StatusStyle> = {
     badge: 'bg-red-500/15',
     badgeText: 'text-red-700 dark:text-red-400'
   },
+  session_conflict: {
+    dot: 'bg-purple-500 animate-pulse',
+    badge: 'bg-purple-500/15',
+    badgeText: 'text-purple-700 dark:text-purple-400'
+  },
   idle: {
     dot: 'bg-gray-400',
     badge: 'bg-gray-500/15',
@@ -62,6 +67,7 @@ export function getStatusBadge(status: AgentStatus): { className: string; label:
     tool_running: 'Running',
     awaiting: 'Awaiting',
     error: 'Error',
+    session_conflict: 'In Use',
     idle: 'Idle',
     archived: 'Archived'
   }

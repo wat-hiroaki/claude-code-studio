@@ -27,6 +27,7 @@
       "tool_running": "Running...",
       "awaiting": "Approval Required",
       "error": "Error",
+      "session_conflict": "In Use Elsewhere",
       "idle": "Idle",
       "archived": "Archived"
     },

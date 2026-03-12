@@ -194,7 +194,9 @@ export class PtySessionManager {
     let newStatus: AgentStatus | null = null
 
     // Order matters — more specific patterns first, check recent data primarily
-    if (/\b(Allow|Deny)\b/.test(recentClean) && /\b(yes|no|allow|deny)\b/i.test(recentClean)) {
+    if (/Session ID .* already in use|is already in use/i.test(recentClean)) {
+      newStatus = 'session_conflict'
+    } else if (/\b(Allow|Deny)\b/.test(recentClean) && /\b(yes|no|allow|deny)\b/i.test(recentClean)) {
       newStatus = 'awaiting'
     } else if (/⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏/.test(rawData) || /Thinking\.\.\./.test(recentClean)) {
       newStatus = 'thinking'

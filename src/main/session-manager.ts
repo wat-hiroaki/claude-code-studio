@@ -143,7 +143,15 @@ export class SessionManager {
 
     proc.stderr?.on('data', (chunk: string) => {
       // stderr is typically debug/error info
-      if (chunk.includes('Error') || chunk.includes('error')) {
+      if (chunk.includes('already in use') || chunk.includes('Session ID') && chunk.includes('in use')) {
+        // Session conflict: another instance is using this session ID
+        this.updateStatus(agent.id, 'session_conflict')
+        this.onOutput(agent.id, {
+          role: 'system',
+          contentType: 'error',
+          content: 'This session is active in another terminal. Restart the agent to create a new session.'
+        })
+      } else if (chunk.includes('Error') || chunk.includes('error')) {
         this.updateStatus(agent.id, 'error')
         this.onOutput(agent.id, {
           role: 'system',
@@ -339,13 +347,24 @@ export class SessionManager {
       }
 
       case 'error': {
-        this.updateStatus(agentId, 'error')
-        this.onOutput(agentId, {
-          role: 'system',
-          contentType: 'error',
-          content: (event.error as string) || (event.message as string) || 'Unknown error',
-          metadata: event
-        })
+        const errMsg = (event.error as string) || (event.message as string) || 'Unknown error'
+        if (errMsg.includes('already in use') || errMsg.includes('Session ID') && errMsg.includes('in use')) {
+          this.updateStatus(agentId, 'session_conflict')
+          this.onOutput(agentId, {
+            role: 'system',
+            contentType: 'error',
+            content: 'This session is active in another terminal. Restart the agent to create a new session.',
+            metadata: event
+          })
+        } else {
+          this.updateStatus(agentId, 'error')
+          this.onOutput(agentId, {
+            role: 'system',
+            contentType: 'error',
+            content: errMsg,
+            metadata: event
+          })
+        }
         break
       }
 

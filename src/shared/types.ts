@@ -5,8 +5,10 @@ export type AgentStatus =
   | 'tool_running'
   | 'awaiting'
   | 'error'
+  | 'session_conflict'
   | 'idle'
   | 'archived'
+
 
 export interface Agent {
   id: string
