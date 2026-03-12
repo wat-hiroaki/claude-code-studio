@@ -278,7 +278,8 @@
     "ok": "OK",
     "edit": "Edit",
     "browse": "Browse...",
-    "view": "View"
+    "view": "View",
+    "all": "All"
   },
   "toast": {
     "agentRestarted": "Agent restarted",

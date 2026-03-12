@@ -278,7 +278,8 @@
     "ok": "OK",
     "edit": "編集",
     "browse": "参照...",
-    "view": "表示"
+    "view": "表示",
+    "all": "すべて"
   },
   "toast": {
     "agentRestarted": "エージェントが再起動されました",

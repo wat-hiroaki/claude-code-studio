@@ -162,7 +162,7 @@ export function ActivityLog(): JSX.Element {
                   filterType === type ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:bg-muted/50'
                 )}
               >
-                {type === 'all' ? 'All' : t(`activity.type.${type}`)}
+                {type === 'all' ? t('common.all', 'All') : t(`activity.type.${type}`)}
               </button>
             ))}
           </div>
