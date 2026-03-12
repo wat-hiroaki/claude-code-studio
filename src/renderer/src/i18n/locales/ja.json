@@ -249,7 +249,19 @@
     "detectedFiles": "検出ファイル",
     "createAgent": "このプロジェクトからエージェントを作成",
     "button": "ワークスペーススキャン",
-    "confirmDelete": "ワークスペース \"{{name}}\" を削除しますか？エージェントは残りますが未割り当てになります。"
+    "confirmDelete": "ワークスペース \"{{name}}\" を削除しますか？エージェントは残りますが未割り当てになります。",
+    "name": "名前",
+    "connection": "接続",
+    "local": "ローカル",
+    "localDesc": "このマシンで実行",
+    "sshRemote": "SSHリモート",
+    "sshDesc": "SSH + tmux で接続",
+    "host": "ホスト",
+    "port": "ポート",
+    "username": "ユーザー名",
+    "privateKey": "秘密鍵（オプション）",
+    "testing": "テスト中...",
+    "testConnection": "接続テスト"
   },
   "files": {
     "title": "変更ファイル",

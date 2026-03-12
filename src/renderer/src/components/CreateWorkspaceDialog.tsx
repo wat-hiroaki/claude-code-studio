@@ -98,13 +98,13 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
         <div className="p-4 space-y-4">
           {/* Name + Color */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Name</label>
+            <label className="text-xs font-medium text-muted-foreground">{t('workspace.name', 'Name')}</label>
             <div className="flex gap-2 mt-1">
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Company-A, Personal"
+                placeholder={t('workspace.namePlaceholder')}
                 className="flex-1 px-3 py-2 bg-secondary rounded-lg text-sm outline-none"
                 autoFocus
               />
@@ -123,7 +123,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
 
           {/* Connection Type */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Connection</label>
+            <label className="text-xs font-medium text-muted-foreground">{t('workspace.connection', 'Connection')}</label>
             <div className="flex gap-2 mt-1">
               <button
                 onClick={() => setConnectionType('local')}
@@ -134,8 +134,8 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
               >
                 <Laptop size={16} />
                 <div className="text-left">
-                  <div className="font-medium">Local</div>
-                  <div className="text-[10px] text-muted-foreground">Run on this machine</div>
+                  <div className="font-medium">{t('workspace.local', 'Local')}</div>
+                  <div className="text-[10px] text-muted-foreground">{t('workspace.localDesc', 'Run on this machine')}</div>
                 </div>
               </button>
               <button
@@ -147,8 +147,8 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
               >
                 <Server size={16} />
                 <div className="text-left">
-                  <div className="font-medium">SSH Remote</div>
-                  <div className="text-[10px] text-muted-foreground">Connect via SSH + tmux</div>
+                  <div className="font-medium">{t('workspace.sshRemote', 'SSH Remote')}</div>
+                  <div className="text-[10px] text-muted-foreground">{t('workspace.sshDesc', 'Connect via SSH + tmux')}</div>
                 </div>
               </button>
             </div>
@@ -159,7 +159,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
             <div className="space-y-3 p-3 bg-secondary/50 rounded-lg border border-border/50">
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-2">
-                  <label className="text-[10px] font-medium text-muted-foreground">Host</label>
+                  <label className="text-[10px] font-medium text-muted-foreground">{t('workspace.host', 'Host')}</label>
                   <input
                     type="text"
                     value={sshHost}
@@ -169,7 +169,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-medium text-muted-foreground">Port</label>
+                  <label className="text-[10px] font-medium text-muted-foreground">{t('workspace.port', 'Port')}</label>
                   <input
                     type="text"
                     value={sshPort}
@@ -180,7 +180,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-medium text-muted-foreground">Username</label>
+                <label className="text-[10px] font-medium text-muted-foreground">{t('workspace.username', 'Username')}</label>
                 <input
                   type="text"
                   value={sshUsername}
@@ -190,7 +190,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
                 />
               </div>
               <div>
-                <label className="text-[10px] font-medium text-muted-foreground">Private Key (optional)</label>
+                <label className="text-[10px] font-medium text-muted-foreground">{t('workspace.privateKey', 'Private Key (optional)')}</label>
                 <div className="flex gap-2 mt-0.5">
                   <input
                     type="text"
@@ -200,7 +200,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
                     className="flex-1 px-2 py-1.5 bg-background rounded text-xs outline-none"
                   />
                   <button onClick={handleSelectKey} className="px-2 py-1.5 bg-background rounded text-xs hover:bg-accent transition-colors">
-                    Browse
+                    {t('common.browse')}
                   </button>
                 </div>
               </div>
@@ -212,9 +212,9 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs border border-border hover:bg-accent transition-colors disabled:opacity-50"
               >
                 {testing ? (
-                  <><Loader2 size={12} className="animate-spin" /> Testing...</>
+                  <><Loader2 size={12} className="animate-spin" /> {t('workspace.testing', 'Testing...')}</>
                 ) : (
-                  'Test Connection'
+                  t('workspace.testConnection', 'Test Connection')
                 )}
               </button>
 

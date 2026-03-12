@@ -249,7 +249,19 @@
     "detectedFiles": "Detected",
     "createAgent": "Create Agent from this project",
     "button": "Scan Workspaces",
-    "confirmDelete": "Delete workspace \"{{name}}\"? Agents will remain but become unassigned."
+    "confirmDelete": "Delete workspace \"{{name}}\"? Agents will remain but become unassigned.",
+    "name": "Name",
+    "connection": "Connection",
+    "local": "Local",
+    "localDesc": "Run on this machine",
+    "sshRemote": "SSH Remote",
+    "sshDesc": "Connect via SSH + tmux",
+    "host": "Host",
+    "port": "Port",
+    "username": "Username",
+    "privateKey": "Private Key (optional)",
+    "testing": "Testing...",
+    "testConnection": "Test Connection"
   },
   "files": {
     "title": "Changed Files",
