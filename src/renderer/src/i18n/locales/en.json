@@ -239,7 +239,8 @@
     "preview": "Preview",
     "detectedFiles": "Detected",
     "createAgent": "Create Agent from this project",
-    "button": "Scan Workspaces"
+    "button": "Scan Workspaces",
+    "confirmDelete": "Delete workspace \"{{name}}\"? Agents will remain but become unassigned."
   },
   "files": {
     "title": "Changed Files",

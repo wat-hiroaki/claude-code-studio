@@ -81,7 +81,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
 
   const handleDelete = async (ws: Workspace, e: React.MouseEvent): Promise<void> => {
     e.stopPropagation()
-    if (!confirm(`Delete workspace "${ws.name}"? Agents will remain but become unassigned.`)) return
+    if (!confirm(t('workspace.confirmDelete', 'Delete workspace "{{name}}"? Agents will remain but become unassigned.', { name: ws.name }))) return
     try {
       await window.api.deleteWorkspace(ws.id)
       if (activeWorkspaceId === ws.id) {
