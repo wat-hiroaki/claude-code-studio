@@ -16,6 +16,7 @@ interface PtySession {
   lastStatus: AgentStatus
   lastOutputLine: string
   _retryCount?: number
+  _idleTimer?: ReturnType<typeof setTimeout>
 }
 
 type PtyDataCallback = (agentId: string, data: string) => void
@@ -180,11 +181,29 @@ export class PtySessionManager {
     return this.database.getScrollback(agentId)
   }
 
+  private setStatus(session: PtySession, newStatus: AgentStatus): void {
+    if (newStatus === session.lastStatus) return
+    session.lastStatus = newStatus
+    this.database.updateAgent(session.agentId, {
+      status: newStatus,
+      ...(newStatus === 'active' ? { currentTask: null } : {})
+    })
+    this.onStatusChange(session.agentId, newStatus)
+  }
+
+  private scheduleIdleReset(session: PtySession): void {
+    if (session._idleTimer) clearTimeout(session._idleTimer)
+    session._idleTimer = setTimeout(() => {
+      // If output has stopped for 2s, assume Claude is waiting for input
+      if (session.lastStatus !== 'active' && session.lastStatus !== 'session_conflict') {
+        this.setStatus(session, 'active')
+      }
+    }, 2000)
+  }
+
   private detectAndUpdateStatus(session: PtySession, rawData: string): void {
-    // Keep a rolling buffer of the last 500 chars for pattern matching
     session.outputBuffer = (session.outputBuffer + rawData).slice(-500)
     const recentClean = stripAnsi(rawData)
-    const bufferClean = stripAnsi(session.outputBuffer)
 
     // Track last meaningful output line for sidebar preview
     const lines = recentClean.split('\n').map((l) => l.trim()).filter((l) => l.length > 2)
@@ -192,58 +211,37 @@ export class PtySessionManager {
       session.lastOutputLine = lines[lines.length - 1].slice(0, 80)
     }
 
-    let newStatus: AgentStatus | null = null
-
-    // Order matters — more specific patterns first, check recent data primarily
-    if (/Session ID .* already in use|is already in use/i.test(recentClean)) {
-      newStatus = 'session_conflict'
-    } else if (/\b(Allow|Deny)\b/.test(recentClean) && /\b(yes|no|allow|deny)\b/i.test(recentClean)) {
-      newStatus = 'awaiting'
-    } else if (/⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏/.test(rawData) || /Thinking\.\.\./.test(recentClean)) {
-      newStatus = 'thinking'
-    } else if (/^ *(Read|Edit|Write|Bash|Glob|Grep|Agent|Skill)\b/.test(recentClean)) {
-      newStatus = 'tool_running'
-    } else if (/[❯>]\s*$/.test(bufferClean.split('\n').pop() ?? '')) {
-      newStatus = 'active'
+    // Session conflict — highest priority, requires special handling
+    if (/already in use/i.test(recentClean)) {
+      this.setStatus(session, 'session_conflict')
+      this.handleSessionConflict(session)
+      return
     }
 
-    if (newStatus && newStatus !== session.lastStatus) {
-      session.lastStatus = newStatus
-      this.database.updateAgent(session.agentId, { status: newStatus })
-      this.onStatusChange(session.agentId, newStatus)
-
-      // Auto-resolve session conflicts with new session ID
-      if (newStatus === 'session_conflict') {
-        const retryCount = session._retryCount || 0
-        if (retryCount < 2) {
-          const agent = this.database.getAgent(session.agentId)
-          if (agent) {
-            this.stopSession(session.agentId)
-            const newSessionId = uuidv4()
-            this.database.updateAgent(agent.id, { claudeSessionId: newSessionId })
-            const updatedAgent = { ...agent, claudeSessionId: newSessionId }
-            this.startSession(updatedAgent).then(() => {
-              const newSession = this.sessions.get(agent.id)
-              if (newSession) {
-                newSession._retryCount = retryCount + 1
-              }
-            }).catch(() => {
-              this.database.updateAgent(agent.id, { status: 'error' })
-              this.onStatusChange(agent.id, 'error')
-            })
-          }
-        }
-      }
-
-      // Update currentTask for tool_running
-      if (newStatus === 'tool_running') {
-        const toolMatch = recentClean.match(/^ *(Read|Edit|Write|Bash|Glob|Grep|Agent|Skill)\b/)
-        if (toolMatch) {
-          this.database.updateAgent(session.agentId, { currentTask: `Running ${toolMatch[1]}...` })
-        }
-      } else if (newStatus === 'active') {
-        this.database.updateAgent(session.agentId, { currentTask: null })
-      }
+    // Spinner characters = actively thinking
+    if (/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(rawData)) {
+      this.setStatus(session, 'thinking')
     }
+
+    // Always schedule an idle reset — if output stops, go back to active
+    this.scheduleIdleReset(session)
+  }
+
+  private handleSessionConflict(session: PtySession): void {
+    const retryCount = session._retryCount || 0
+    if (retryCount >= 2) return
+    const agent = this.database.getAgent(session.agentId)
+    if (!agent) return
+
+    this.stopSession(session.agentId)
+    const newSessionId = uuidv4()
+    this.database.updateAgent(agent.id, { claudeSessionId: newSessionId })
+    this.startSession({ ...agent, claudeSessionId: newSessionId }).then(() => {
+      const newSession = this.sessions.get(agent.id)
+      if (newSession) newSession._retryCount = retryCount + 1
+    }).catch(() => {
+      this.database.updateAgent(agent.id, { status: 'error' })
+      this.onStatusChange(agent.id, 'error')
+    })
   }
 }
