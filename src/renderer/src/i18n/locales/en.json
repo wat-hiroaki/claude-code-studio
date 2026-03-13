@@ -79,6 +79,7 @@
     "orgChart": "Org Chart",
     "skillMap": "Skill Map",
     "kanban": "Kanban",
+    "activityMap": "Activity Map",
     "newTeam": "New Team",
     "teamName": "Team Name",
     "teamColor": "Color",
@@ -187,6 +188,11 @@
       "dashboard": "Dashboard",
       "broadcast": "Broadcast"
     }
+  },
+  "activityMap": {
+    "title": "ACTIVITY MAP",
+    "system": "SYSTEM",
+    "online": "ONLINE"
   },
   "dailyReport": {
     "title": "Daily Report",

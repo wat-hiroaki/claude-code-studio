@@ -79,6 +79,7 @@
     "orgChart": "組織図",
     "skillMap": "スキルマップ",
     "kanban": "カンバン",
+    "activityMap": "アクティビティマップ",
     "newTeam": "新規チーム",
     "teamName": "チーム名",
     "teamColor": "カラー",
@@ -187,6 +188,11 @@
       "dashboard": "ダッシュボード",
       "broadcast": "ブロードキャスト"
     }
+  },
+  "activityMap": {
+    "title": "アクティビティマップ",
+    "system": "システム",
+    "online": "稼働中"
   },
   "dailyReport": {
     "title": "日報",

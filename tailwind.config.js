@@ -35,6 +35,16 @@ module.exports = {
           foreground: 'hsl(var(--card-foreground))'
         }
       },
+      animation: {
+        'spin-slow': 'spin 8s linear infinite',
+        'glow-pulse': 'glow-pulse 2s ease-in-out infinite'
+      },
+      keyframes: {
+        'glow-pulse': {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '1' }
+        }
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

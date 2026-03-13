@@ -52,8 +52,8 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
     setHistoryIndex(-1)
     savedDraft.current = ''
 
-    // Send to PTY stdin with newline
-    window.api.ptyWrite(agentId, trimmed + '\n')
+    // Send to PTY stdin with carriage return (same as pressing Enter in terminal)
+    window.api.ptyWrite(agentId, trimmed + '\r')
     setValue('')
 
     // Reset textarea height

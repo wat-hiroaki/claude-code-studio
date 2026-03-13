@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import {
   Users, AlertCircle, XCircle, CheckCircle2, FileText,
-  Network, BarChart3, Columns3, Plus, X, HardDrive, Brain
+  Network, BarChart3, Columns3, Plus, X, HardDrive, Brain, Radar
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { ActivityLog } from './ActivityLog'
@@ -11,9 +11,10 @@ import { DailyReport } from './DailyReport'
 import { OrgChart } from './OrgChart'
 import { SkillMap } from './SkillMap'
 import { KanbanBoard } from './KanbanBoard'
+import { ActivityMap } from './ActivityMap'
 import type { Team } from '@shared/types'
 
-type DashboardView = 'orgChart' | 'skillMap' | 'kanban'
+type DashboardView = 'orgChart' | 'skillMap' | 'kanban' | 'activityMap'
 
 interface DashboardProps {
   onOpenScanner?: () => void
@@ -59,7 +60,8 @@ export function Dashboard({ onOpenScanner }: DashboardProps): JSX.Element {
   const views: { key: DashboardView; icon: typeof Network; label: string }[] = [
     { key: 'orgChart', icon: Network, label: t('teamMgmt.orgChart') },
     { key: 'skillMap', icon: BarChart3, label: t('teamMgmt.skillMap') },
-    { key: 'kanban', icon: Columns3, label: t('teamMgmt.kanban') }
+    { key: 'kanban', icon: Columns3, label: t('teamMgmt.kanban') },
+    { key: 'activityMap', icon: Radar, label: t('teamMgmt.activityMap') }
   ]
 
   const teamColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4']
@@ -208,6 +210,7 @@ export function Dashboard({ onOpenScanner }: DashboardProps): JSX.Element {
         {activeView === 'orgChart' && <OrgChart teams={teams} onAgentClick={handleAgentClick} />}
         {activeView === 'skillMap' && <SkillMap onAgentClick={handleAgentClick} />}
         {activeView === 'kanban' && <KanbanBoard teams={teams} onAgentClick={handleAgentClick} />}
+        {activeView === 'activityMap' && <ActivityMap teams={teams} onAgentClick={handleAgentClick} />}
       </div>
 
       {/* Activity Log */}
