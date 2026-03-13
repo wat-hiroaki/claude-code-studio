@@ -731,6 +731,7 @@ app.whenReady().then(() => {
     database,
     (agentId, data) => {
       mainWindow?.webContents.send('pty:data', agentId, data)
+      chainOrchestrator?.handlePtyData(agentId, data)
     },
     (agentId, status) => {
       handleStatusChangeWithNotification(agentId, status)
@@ -744,6 +745,7 @@ app.whenReady().then(() => {
     database,
     (agentId, data) => {
       mainWindow?.webContents.send('pty:data', agentId, data)
+      chainOrchestrator?.handlePtyData(agentId, data)
     },
     (agentId, status) => {
       handleStatusChangeWithNotification(agentId, status)
@@ -753,7 +755,34 @@ app.whenReady().then(() => {
     }
   )
 
-  chainOrchestrator = new ChainOrchestrator(database, sessionManager)
+  chainOrchestrator = new ChainOrchestrator(
+    database,
+    async (agent) => {
+      const { usePtyMode } = database.getSettings()
+      if (usePtyMode) {
+        if (isAgentSsh(agent.id)) {
+          const workspace = getAgentWorkspace(agent.id)
+          if (workspace) await sshSessionManager.startSession(agent, workspace)
+        } else {
+          await ptySessionManager.startSession(agent)
+        }
+      } else {
+        await sessionManager.startSession(agent)
+      }
+    },
+    async (agentId, message) => {
+      const { usePtyMode } = database.getSettings()
+      if (usePtyMode) {
+        if (isAgentSsh(agentId)) {
+          sshSessionManager.writeInput(agentId, message + '\n')
+        } else {
+          ptySessionManager.writeInput(agentId, message + '\n')
+        }
+      } else {
+        await sessionManager.sendInput(agentId, message)
+      }
+    }
+  )
 
   setupIPC()
   setupPtyIPC()

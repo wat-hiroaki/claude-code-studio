@@ -1,25 +1,33 @@
 import type { Database } from './database'
-import type { SessionManager } from './session-manager'
-import type { AgentStatus, TaskChain } from '@shared/types'
+import type { AgentStatus, TaskChain, Agent } from '@shared/types'
+
+// Simple ANSI stripper
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '')
+}
 
 /**
  * ChainOrchestrator watches agent status changes and triggers
  * task chains when conditions are met.
- *
- * When an agent's status changes to 'idle' (complete) or a keyword
- * condition matches, it looks up active chains where that agent is
- * the trigger. If matched, it sends the chain's message template
- * (with variable substitution) to the target agent.
  */
 export class ChainOrchestrator {
   private database: Database
-  private sessionManager: SessionManager
+  private startTargetSession: (agent: Agent) => Promise<void>
+  private sendTargetInput: (agentId: string, message: string) => Promise<void>
+  
   /** Last output content per agent, used for keyword matching and {prev_result} */
   private lastOutputByAgent: Map<string, string> = new Map()
+  private ptyBufferByAgent: Map<string, string> = new Map()
 
-  constructor(database: Database, sessionManager: SessionManager) {
+  constructor(
+    database: Database,
+    startTargetSession: (agent: Agent) => Promise<void>,
+    sendTargetInput: (agentId: string, message: string) => Promise<void>
+  ) {
     this.database = database
-    this.sessionManager = sessionManager
+    this.startTargetSession = startTargetSession
+    this.sendTargetInput = sendTargetInput
   }
 
   /**
@@ -41,13 +49,30 @@ export class ChainOrchestrator {
   }
 
   /**
-   * Called when an agent produces output. Stores the last output
+   * Called when an agent produces output in standard mode. Stores the last output
    * for keyword matching and {prev_result} substitution.
    */
   handleAgentOutput(agentId: string, content: string): void {
     this.lastOutputByAgent.set(agentId, content)
+    this.checkKeywords(agentId, content)
+  }
 
-    // Check keyword-based chains immediately on output
+  /**
+   * Called when an agent produces raw PTY output.
+   * Cleans ANSI, buffers it, and checks for keywords.
+   */
+  handlePtyData(agentId: string, data: string): void {
+    const cleanData = stripAnsi(data)
+    let buffer = (this.ptyBufferByAgent.get(agentId) || '') + cleanData
+    // Keep last 50,000 characters to prevent memory leaks while keeping enough context
+    buffer = buffer.slice(-50000)
+    this.ptyBufferByAgent.set(agentId, buffer)
+    this.lastOutputByAgent.set(agentId, buffer) // Use as prev_result
+    
+    this.checkKeywords(agentId, buffer)
+  }
+
+  private checkKeywords(agentId: string, content: string): void {
     const chains = this.database.getChains().filter(
       (c) =>
         c.isActive &&
@@ -59,6 +84,10 @@ export class ChainOrchestrator {
     for (const chain of chains) {
       const keyword = chain.triggerCondition.keyword
       if (keyword && content.includes(keyword)) {
+        // Clear buffer so we don't trigger the same chain continuously 
+        if (this.ptyBufferByAgent.has(agentId)) {
+          this.ptyBufferByAgent.set(agentId, '')
+        }
         this.executeChain(chain, agentId)
       }
     }
@@ -150,7 +179,7 @@ export class ChainOrchestrator {
       targetAgent.status === 'error' ||
       targetAgent.status === 'creating'
     ) {
-      await this.sessionManager.startSession(targetAgent)
+      await this.startTargetSession(targetAgent)
     }
 
     this.database.addMessage(chain.targetAgentId, 'manager', 'text', message, {
@@ -159,7 +188,7 @@ export class ChainOrchestrator {
       automated: true
     })
 
-    await this.sessionManager.sendInput(chain.targetAgentId, message)
+    await this.sendTargetInput(chain.targetAgentId, message)
   }
 
   /**
