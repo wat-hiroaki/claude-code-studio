@@ -21,7 +21,7 @@ import {
   Brain
 } from 'lucide-react'
 import { ChangedFilesPanel } from './ChangedFilesPanel'
-import type { Message } from '@shared/types'
+import type { Message, Workspace } from '@shared/types'
 
 // ---------------------------------------------------------------------------
 // Tool action parsing
@@ -392,10 +392,19 @@ export function TerminalView({ agentId, onClose, compact }: TerminalViewProps): 
   const { t } = useTranslation()
   const { agents, messages, setMessages, addMessage } = useAppStore()
   const [input, setInput] = useState('')
+  const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const agent = agents.find((a) => a.id === agentId)
   const agentMessages = messages[agentId] || []
+
+  // Fetch workspace info
+  useEffect(() => {
+    if (!agent?.workspaceId) { setWorkspace(null); return }
+    window.api.getWorkspaces().then((wsList) => {
+      setWorkspace(wsList.find((w) => w.id === agent.workspaceId) ?? null)
+    })
+  }, [agent?.workspaceId])
 
   const loadMessages = useCallback(async () => {
     const msgs = await window.api.getMessages(agentId)
@@ -464,6 +473,11 @@ export function TerminalView({ agentId, onClose, compact }: TerminalViewProps): 
           <span className={cn('font-mono font-bold text-cyan-300 drop-shadow-[0_0_4px_rgba(103,232,249,0.5)] truncate uppercase', compact ? 'text-[11px]' : 'text-xs')}>
             {agent.name}
           </span>
+          {agent.roleLabel && (
+            <span className="text-[10px] text-muted-foreground/70 truncate">
+              {agent.roleLabel}
+            </span>
+          )}
           <span className={cn(
             'px-1.5 py-0.5 rounded text-[10px] shrink-0',
             getStatusBadge(agent.status).className
@@ -473,6 +487,11 @@ export function TerminalView({ agentId, onClose, compact }: TerminalViewProps): 
           {agent.currentTask && !compact && (
             <span className="text-[10px] text-muted-foreground truncate">
               — {agent.currentTask}
+            </span>
+          )}
+          {workspace && !compact && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 shrink-0 truncate max-w-[120px]">
+              {workspace.name}
             </span>
           )}
         </div>

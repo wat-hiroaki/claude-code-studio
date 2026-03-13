@@ -2,6 +2,17 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, ArrowRight, RotateCw, Globe, ExternalLink } from 'lucide-react'
 
+interface ElectronWebview extends HTMLElement {
+  canGoBack: () => boolean;
+  canGoForward: () => boolean;
+  getURL: () => string;
+  getTitle: () => string;
+  goBack: () => void;
+  goForward: () => void;
+  stop: () => void;
+  reload: () => void;
+}
+
 export function BrowserPanel(): JSX.Element {
   const { t } = useTranslation()
   const [url, setUrl] = useState('https://www.google.com')
@@ -34,7 +45,7 @@ export function BrowserPanel(): JSX.Element {
   }
 
   useEffect(() => {
-    const webview = webviewRef.current as any
+    const webview = webviewRef.current as ElectronWebview | null
     if (!webview) return
 
     const handleNavigation = (): void => {
@@ -70,7 +81,7 @@ export function BrowserPanel(): JSX.Element {
       {/* Navigation bar */}
       <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border bg-secondary/30">
         <button
-          onClick={() => (webviewRef.current as any)?.goBack()}
+          onClick={() => (webviewRef.current as ElectronWebview | null)?.goBack()}
           disabled={!canGoBack}
           className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
           title={t('browser.back', 'Back')}
@@ -78,7 +89,7 @@ export function BrowserPanel(): JSX.Element {
           <ArrowLeft size={14} />
         </button>
         <button
-          onClick={() => (webviewRef.current as any)?.goForward()}
+          onClick={() => (webviewRef.current as ElectronWebview | null)?.goForward()}
           disabled={!canGoForward}
           className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
           title={t('browser.forward', 'Forward')}
@@ -87,7 +98,7 @@ export function BrowserPanel(): JSX.Element {
         </button>
         <button
           onClick={() => {
-            const wv = webviewRef.current as any
+            const wv = webviewRef.current as ElectronWebview | null
             if (isLoading) {
               wv?.stop()
             } else {
@@ -112,7 +123,7 @@ export function BrowserPanel(): JSX.Element {
         </div>
         <button
           onClick={() => {
-            const wv = webviewRef.current as any
+            const wv = webviewRef.current as ElectronWebview | null
             if (wv) {
               window.open(wv.getURL(), '_blank')
             }

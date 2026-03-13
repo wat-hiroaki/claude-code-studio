@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { cn } from '../lib/utils'
-import { getStatusDot, getStatusBadge, getInitials } from '../lib/status'
+import { getInitials } from '../lib/status'
 import {
   DndContext,
   DragOverlay,
@@ -15,24 +15,16 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import type { Agent, AgentStatus, Team } from '@shared/types'
+import type { Task, TaskStatus } from '@shared/types'
 
-interface KanbanBoardProps {
-  teams: Team[]
-  onAgentClick: (id: string) => void
-}
-
-const kanbanColumns: { status: AgentStatus; color: string }[] = [
-  { status: 'active', color: 'border-green-500' },
-  { status: 'thinking', color: 'border-blue-500' },
-  { status: 'tool_running', color: 'border-yellow-500' },
-  { status: 'awaiting', color: 'border-orange-500' },
-  { status: 'idle', color: 'border-gray-400' },
-  { status: 'error', color: 'border-red-500' }
+const kanbanColumns: { status: TaskStatus; color: string; labelKey: string }[] = [
+  { status: 'todo', color: 'border-blue-500', labelKey: 'todo' },
+  { status: 'in_progress', color: 'border-orange-500', labelKey: 'in_progress' },
+  { status: 'done', color: 'border-green-500', labelKey: 'done' }
 ]
 
-function SortableAgentCard({ agent, onAgentClick }: { agent: Agent; onAgentClick: (id: string) => void }): JSX.Element {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: agent.id })
+function SortableTaskCard({ task }: { task: Task }): JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -48,54 +40,43 @@ function SortableAgentCard({ agent, onAgentClick }: { agent: Agent; onAgentClick
       {...listeners}
       className="touch-none"
     >
-      <AgentKanbanCard agent={agent} onAgentClick={onAgentClick} />
+      <TaskKanbanCard task={task} />
     </div>
   )
 }
 
-function AgentKanbanCard({ agent, onAgentClick }: { agent: Agent; onAgentClick: (id: string) => void }): JSX.Element {
+function TaskKanbanCard({ task }: { task: Task }): JSX.Element {
+  const { agents } = useAppStore()
+  const assignedAgent = task.agentId ? agents.find(a => a.id === task.agentId) : null
+
   return (
-    <button
-      onClick={() => onAgentClick(agent.id)}
-      className="w-full text-left p-2.5 rounded-lg bg-card border border-border hover:bg-accent/50 transition-colors mb-1.5"
+    <div
+      className="w-full text-left p-2.5 rounded-lg bg-card border border-border hover:bg-accent/50 transition-colors mb-1.5 cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-center gap-2">
-        <div className="relative flex-shrink-0">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-            {getInitials(agent.name)}
-          </div>
-          <div className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card', getStatusDot(agent.status))} />
-        </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium truncate">{agent.name}</div>
-          {agent.roleLabel && (
-            <div className="text-[10px] text-muted-foreground">{agent.roleLabel}</div>
+          <div className="text-xs font-medium truncate">{task.title}</div>
+          {task.description && (
+            <div className="text-[10px] text-muted-foreground line-clamp-2 mt-1">{task.description}</div>
           )}
         </div>
       </div>
-      {agent.currentTask && (
-        <p className="text-[10px] text-muted-foreground mt-1.5 truncate pl-10">
-          {agent.currentTask}
-        </p>
-      )}
-      {agent.skills.length > 0 && (
-        <div className="flex flex-wrap gap-0.5 mt-1.5 pl-10">
-          {agent.skills.slice(0, 2).map((skill) => (
-            <span key={skill} className="text-[8px] px-1 py-0.5 rounded bg-secondary text-muted-foreground">
-              {skill}
-            </span>
-          ))}
+      {assignedAgent && (
+        <div className="flex items-center gap-1.5 mt-2">
+          <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-medium" title={assignedAgent.name}>
+            {getInitials(assignedAgent.name)}
+          </div>
+          <span className="text-[9px] text-muted-foreground truncate">{assignedAgent.name}</span>
         </div>
       )}
-    </button>
+    </div>
   )
 }
 
-export function KanbanBoard({ onAgentClick }: KanbanBoardProps): JSX.Element {
+export function KanbanBoard(): JSX.Element {
   const { t } = useTranslation()
-  const { agents, updateAgentInList } = useAppStore()
+  const { tasks, updateTask } = useAppStore()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const activeAgents = agents.filter((a) => a.status !== 'archived' && a.status !== 'creating')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -110,45 +91,42 @@ export function KanbanBoard({ onAgentClick }: KanbanBoardProps): JSX.Element {
     const { active, over } = event
     if (!over) return
 
-    const agentId = active.id as string
+    const taskId = active.id as string
     const targetColumn = over.id as string
 
-    // Check if dropped on a column header
     if (kanbanColumns.some((c) => c.status === targetColumn)) {
-      const agent = activeAgents.find((a) => a.id === agentId)
-      if (agent && agent.status !== targetColumn) {
-        // Only allow moving to idle (done) or restart flows in real usage
-        // For now, just update the visual state
-        window.api.updateAgent(agentId, { status: targetColumn as AgentStatus })
-        updateAgentInList(agentId, { status: targetColumn as AgentStatus })
+      const task = tasks.find((t) => t.id === taskId)
+      if (task && task.status !== targetColumn) {
+        window.api.updateTask(taskId, { status: targetColumn as TaskStatus })
+        updateTask(taskId, { status: targetColumn as TaskStatus })
       }
     }
   }
 
-  const draggedAgent = activeId ? activeAgents.find((a) => a.id === activeId) : null
+  const draggedTask = activeId ? tasks.find((a) => a.id === activeId) : null
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {kanbanColumns.map(({ status, color }) => {
-          const columnAgents = activeAgents.filter((a) => a.status === status)
+        {kanbanColumns.map(({ status, color, labelKey }) => {
+          const columnTasks = tasks.filter((t) => t.status === status)
 
           return (
             <div
               key={status}
               id={status}
-              className={cn('flex-shrink-0 w-52 rounded-lg bg-secondary/50 border-t-2', color)}
+              className={cn('flex-shrink-0 w-64 rounded-lg bg-secondary/50 border-t-2 flex flex-col', color)}
             >
               <div className="p-2 flex items-center justify-between">
-                <span className={cn('text-[11px] font-medium px-1.5 py-0.5 rounded', getStatusBadge(status).className)}>
-                  {t(`agent.status.${status}`)}
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-background/50">
+                  {t(`task.status.${labelKey}`, labelKey.replace('_', ' ').toUpperCase())}
                 </span>
-                <span className="text-[10px] text-muted-foreground">{columnAgents.length}</span>
+                <span className="text-[10px] text-muted-foreground">{columnTasks.length}</span>
               </div>
-              <div className="p-1.5 min-h-[80px]">
-                <SortableContext items={columnAgents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-                  {columnAgents.map((agent) => (
-                    <SortableAgentCard key={agent.id} agent={agent} onAgentClick={onAgentClick} />
+              <div className="p-1.5 min-h-[80px] flex-1">
+                <SortableContext items={columnTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                  {columnTasks.map((task) => (
+                    <SortableTaskCard key={task.id} task={task} />
                   ))}
                 </SortableContext>
               </div>
@@ -158,8 +136,9 @@ export function KanbanBoard({ onAgentClick }: KanbanBoardProps): JSX.Element {
       </div>
 
       <DragOverlay>
-        {draggedAgent && <AgentKanbanCard agent={draggedAgent} onAgentClick={() => {}} />}
+        {draggedTask && <TaskKanbanCard task={draggedTask} />}
       </DragOverlay>
     </DndContext>
   )
 }
+

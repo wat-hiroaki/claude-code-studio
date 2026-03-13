@@ -76,6 +76,11 @@ function AgentHeader({ agent, compact, workspace, onRecoverSession }: { agent: A
             SSH
           </span>
         )}
+        {workspace && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 shrink-0 truncate max-w-[120px]">
+            {workspace.name}
+          </span>
+        )}
         {agent.currentTask && (
           <span className="text-[10px] text-muted-foreground/60 truncate max-w-[200px]">
             {agent.currentTask}
