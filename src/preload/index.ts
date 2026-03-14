@@ -101,6 +101,7 @@ const api: ElectronAPI = {
   ptyStop: (agentId) => ipcRenderer.invoke('pty:stop', agentId),
   ptyLastOutput: (agentId) => ipcRenderer.invoke('pty:lastOutput', agentId),
   ptyGetScrollback: (agentId) => ipcRenderer.invoke('pty:scrollback', agentId),
+  ptyResolveConflict: (agentId) => ipcRenderer.invoke('pty:resolveConflict', agentId),
   onPtyData: (callback) => {
     const handler = (_event: Electron.IpcRendererEvent, agentId: string, data: string): void => {
       callback(agentId, data)
@@ -160,6 +161,14 @@ const api: ElectronAPI = {
     ipcRenderer.on('update:downloaded', handler)
     return () => ipcRenderer.removeListener('update:downloaded', handler)
   },
+  // Diagnostics
+  getDiagnosticLogs: (limit?: number, level?: string, category?: string) => ipcRenderer.invoke('diagnostics:getLogs', limit, level, category),
+  getDiagnosticStats: () => ipcRenderer.invoke('diagnostics:getStats'),
+  exportDiagnostics: () => ipcRenderer.invoke('diagnostics:export'),
+  clearDiagnostics: () => ipcRenderer.invoke('diagnostics:clear'),
+  setDiagnosticsEnabled: (enabled: boolean) => ipcRenderer.invoke('diagnostics:setEnabled', enabled),
+  isDiagnosticsEnabled: () => ipcRenderer.invoke('diagnostics:isEnabled'),
+
   installUpdate: () => ipcRenderer.invoke('update:install')
 }
 

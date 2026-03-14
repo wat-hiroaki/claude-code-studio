@@ -105,14 +105,29 @@ export function ActivityLog(): JSX.Element {
     })
 
     const unsubOutput = window.api.onAgentOutput((agentId, message) => {
+      // Strip ANSI escape sequences from PTY output
+      const strip = (s: string): string =>
+        s
+          // eslint-disable-next-line no-control-regex
+          .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
+          // eslint-disable-next-line no-control-regex
+          .replace(/\x1b\][^\x07]*\x07/g, '')
+          // eslint-disable-next-line no-control-regex
+          .replace(/\x1b[>=<][0-9]*[a-zA-Z]?/g, '')
+          // eslint-disable-next-line no-control-regex
+          .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+
       if (message.contentType === 'tool_exec') {
-        const toolName = message.content.split('\n')[0]?.replace(/[[\]]/g, '') ?? 'tool'
+        const toolName = strip(message.content.split('\n')[0]?.replace(/[[\]]/g, '') ?? 'tool')
         addEvent(agentId, 'tool', `${t('activity.events.toolExec')}: ${toolName}`)
       } else if (message.contentType === 'error') {
-        addEvent(agentId, 'error', message.content.slice(0, 80))
+        addEvent(agentId, 'error', strip(message.content).slice(0, 80))
       } else if (message.role === 'agent' && message.contentType === 'text') {
-        const preview = message.content.slice(0, 60)
-        addEvent(agentId, 'message', preview + (message.content.length > 60 ? '...' : ''))
+        const cleaned = strip(message.content)
+        const preview = cleaned.slice(0, 60)
+        addEvent(agentId, 'message', preview + (cleaned.length > 60 ? '...' : ''))
       }
     })
 

@@ -329,6 +329,7 @@ export interface ElectronAPI {
   ptyStop: (agentId: string) => Promise<void>
   ptyLastOutput: (agentId: string) => Promise<string>
   ptyGetScrollback: (agentId: string) => Promise<string>
+  ptyResolveConflict: (agentId: string) => Promise<void>
   onPtyData: (callback: (agentId: string, data: string) => void) => () => void
   onPtyExit: (callback: (agentId: string, exitCode: number) => void) => () => void
 
@@ -365,4 +366,35 @@ export interface ElectronAPI {
   onUpdateProgress: (callback: (percent: number) => void) => () => void
   onUpdateDownloaded: (callback: (version: string) => void) => () => void
   installUpdate: () => Promise<void>
+  // Diagnostics
+  getDiagnosticLogs: (limit?: number, level?: string, category?: string) => Promise<DiagnosticLog[]>
+  getDiagnosticStats: () => Promise<DiagnosticStats>
+  exportDiagnostics: () => Promise<string | null>
+  clearDiagnostics: () => Promise<void>
+  setDiagnosticsEnabled: (enabled: boolean) => Promise<void>
+  isDiagnosticsEnabled: () => Promise<boolean>
+}
+
+export type LogLevel = 'info' | 'warn' | 'error' | 'fatal'
+export type LogCategory = 'pty' | 'session' | 'ipc' | 'network' | 'ui' | 'system' | 'unknown'
+
+export interface DiagnosticLog {
+  timestamp: string
+  level: LogLevel
+  category: LogCategory
+  message: string
+  details?: string
+  agentId?: string
+  sessionId?: string
+  stack?: string
+}
+
+export interface DiagnosticStats {
+  totalLogs: number
+  errorCount: number
+  warnCount: number
+  fatalCount: number
+  oldestLog: string | null
+  newestLog: string | null
+  logSizeBytes: number
 }

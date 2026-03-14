@@ -5,6 +5,7 @@ import { X, Moon, Sun, Monitor, Globe, Bell, Terminal, Database, FolderOpen, Set
 import { showToast } from './ToastContainer'
 import { cn } from '../lib/utils'
 import { ConfigPanel } from './ConfigPanel'
+import { DiagnosticsPanel } from './DiagnosticsPanel'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -238,6 +239,11 @@ export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
                 Data Location
               </button>
             </div>
+          </div>
+
+          {/* Diagnostics */}
+          <div>
+            <DiagnosticsPanel />
           </div>
 
           {/* B-2 to B-4: Config Panel */}

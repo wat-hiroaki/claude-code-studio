@@ -105,3 +105,28 @@
   background: hsl(var(--primary) / 0.3);
   color: hsl(var(--foreground));
 }
+
+/* Status dot micro-animations */
+@keyframes status-spin {
+  0% { box-shadow: 0 0 0 0 currentColor; transform: rotate(0deg); }
+  50% { box-shadow: 0 0 4px 1px currentColor; }
+  100% { box-shadow: 0 0 0 0 currentColor; transform: rotate(360deg); }
+}
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes status-glow {
+  0%, 100% { box-shadow: 0 0 2px 0 currentColor; }
+  50% { box-shadow: 0 0 8px 2px currentColor; }
+}
+
+.animate-status-spin {
+  animation: status-spin 2s linear infinite;
+}
+.animate-status-blink {
+  animation: status-blink 1s step-end infinite;
+}
+.animate-status-glow {
+  animation: status-glow 2s ease-in-out infinite;
+}

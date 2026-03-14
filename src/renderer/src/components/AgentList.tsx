@@ -156,13 +156,27 @@ export function AgentList(): JSX.Element {
     })
   }
 
+  // Strip ANSI escape sequences and terminal control codes from PTY output
+  const stripAnsi = (str: string): string =>
+    str
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')   // CSI sequences: ESC[...X
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\][^\x07]*\x07/g, '')        // OSC sequences: ESC]...BEL
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b[>=<][0-9]*[a-zA-Z]?/g, '')  // DEC private modes
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '') // remaining control chars
+      .replace(/\s+/g, ' ')
+      .trim()
+
   const getLastActivity = (agent: Agent): { preview: string; time: string | null } => {
     const agentMsgs = messages[agent.id] ?? []
     const lastMsg = agentMsgs[agentMsgs.length - 1]
     if (lastMsg) {
-      const preview =
+      const raw =
         lastMsg.role === 'manager' ? `You: ${lastMsg.content}` : lastMsg.content
-      return { preview, time: lastMsg.createdAt }
+      return { preview: stripAnsi(raw), time: lastMsg.createdAt }
     }
     return { preview: t(`agent.status.${agent.status}`), time: agent.updatedAt }
   }
@@ -458,10 +472,22 @@ export function AgentList(): JSX.Element {
                         onClick={() => setSelectedAgent(agent.id)}
                         onContextMenu={(e) => handleContextMenu(e, agent.id)}
                         className={cn(
-                          'w-full flex items-center gap-2 pl-7 pr-2.5 py-1.5 text-left transition-colors hover:bg-accent/50',
-                          selectedAgentId === agent.id && 'bg-accent'
+                          'w-full flex items-center gap-2 pr-2.5 py-1.5 text-left transition-colors hover:bg-accent/50 relative',
+                          selectedAgentId === agent.id && 'bg-accent',
+                          // When workspace color bar is shown, reduce left padding
+                          !activeWorkspaceId && agent.workspaceId && workspaceColors[agent.workspaceId]
+                            ? 'pl-5'
+                            : 'pl-7'
                         )}
                       >
+                        {/* Workspace color vertical bar (only in "All Agents" view) */}
+                        {!activeWorkspaceId && agent.workspaceId && workspaceColors[agent.workspaceId] && (
+                          <div
+                            className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full"
+                            style={{ backgroundColor: workspaceColors[agent.workspaceId] }}
+                          />
+                        )}
+
                         {/* Avatar + status dot */}
                         <div className="relative flex-shrink-0">
                           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium">
@@ -478,12 +504,6 @@ export function AgentList(): JSX.Element {
                         {/* Name + preview + time */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            {!activeWorkspaceId && agent.workspaceId && workspaceColors[agent.workspaceId] && (
-                              <div
-                                className="w-1.5 h-1.5 rounded-full shrink-0 mr-1"
-                                style={{ backgroundColor: workspaceColors[agent.workspaceId] }}
-                              />
-                            )}
                             <span className="text-[11px] font-medium truncate">
                               {agent.name}
                             </span>

@@ -11,10 +11,69 @@ import { scanWorkspaces, scanRemoteWorkspaces } from './workspace-scanner'
 import { readAgentProfile, readFileContent } from './claude-config-reader'
 import { SshSessionManager } from './ssh-session-manager'
 import { initMainI18n, t } from './i18n'
+import { DiagnosticsEngine } from './diagnostics'
 import type { CreateAgentParams, CliSessionInfo } from '@shared/types'
 
 // Track previous status per agent to detect task completion (thinking/tool_running → active)
 const prevAgentStatus = new Map<string, string>()
+
+// --- PTY → agent:output parser ---
+// Debounce per-agent to avoid flooding renderer with events
+const ptyParseTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const ptyParseBuffers = new Map<string, string>()
+
+function stripAnsiCodes(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '')
+}
+
+function parsePtyDataForActivityStream(agentId: string, rawData: string): void {
+  // Accumulate data in a short buffer per agent
+  const existing = ptyParseBuffers.get(agentId) ?? ''
+  ptyParseBuffers.set(agentId, (existing + rawData).slice(-1000))
+
+  // Debounce: emit at most every 300ms per agent
+  if (ptyParseTimers.has(agentId)) return
+  ptyParseTimers.set(agentId, setTimeout(() => {
+    ptyParseTimers.delete(agentId)
+    const buffer = ptyParseBuffers.get(agentId) ?? ''
+    ptyParseBuffers.set(agentId, '')
+
+    const clean = stripAnsiCodes(buffer)
+    if (!clean.trim()) return
+
+    // Determine message type
+    let contentType: string = 'text'
+    let role: string = 'agent'
+    let content = clean.trim().slice(0, 200)
+
+    const toolMatch = clean.match(/(?:Read|Write|Edit|Search|Bash|MultiTool|ListDir|Grep)\([^)]*\)/i)
+    const errorMatch = clean.match(/(?:Error:|APIError|NetworkError|RateLimitError)[^\n]*/i)
+    const toolUsesMatch = clean.match(/(\d+)\s+tool uses/i)
+
+    if (toolMatch) {
+      contentType = 'tool_exec'
+      content = toolMatch[0].slice(0, 120)
+    } else if (errorMatch) {
+      contentType = 'error'
+      content = errorMatch[0].slice(0, 120)
+    } else if (toolUsesMatch) {
+      contentType = 'tool_exec'
+      content = `${toolUsesMatch[1]} tool uses`
+    } else if (/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(buffer)) {
+      // Spinner only — skip, it's just a thinking indicator
+      return
+    } else {
+      // General text output — only emit if substantial
+      const meaningful = clean.split('\n').map(l => l.trim()).filter(l => l.length > 3)
+      if (meaningful.length === 0) return
+      content = meaningful[meaningful.length - 1].slice(0, 200)
+    }
+
+    const message = { role, contentType, content, metadata: undefined }
+    mainWindow?.webContents.send('agent:output', agentId, message)
+  }, 300))
+}
 
 function sendNotification(agentId: string, type: 'awaiting' | 'error' | 'taskComplete'): void {
   const settings = database.getSettings()
@@ -50,6 +109,9 @@ function handleStatusChangeWithNotification(agentId: string, status: string): vo
     sendNotification(agentId, 'awaiting')
   } else if (status === 'error') {
     sendNotification(agentId, 'error')
+    diagnostics?.error('session', `Agent entered error state`, { agentId })
+  } else if (status === 'session_conflict') {
+    diagnostics?.warn('session', `Session conflict detected`, { agentId })
   } else if (status === 'active' && (prev === 'thinking' || prev === 'tool_running')) {
     sendNotification(agentId, 'taskComplete')
   }
@@ -62,6 +124,7 @@ let ptySessionManager: PtySessionManager
 let sshSessionManager: SshSessionManager
 let database: Database
 let chainOrchestrator: ChainOrchestrator
+let diagnostics: DiagnosticsEngine | null = null
 
 function createWindow(): void {
   const settings = database.getSettings()
@@ -786,6 +849,10 @@ function setupIPC(): void {
 // Global error handlers
 process.on('uncaughtException', (err) => {
   console.error('[Main] Uncaught exception:', err)
+  diagnostics?.fatal('system', `Uncaught exception: ${err.message}`, {
+    stack: err.stack,
+    details: String(err)
+  })
   if (mainWindow?.webContents) {
     mainWindow.webContents.send('notification', 'Internal Error', err.message)
   }
@@ -793,6 +860,9 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason) => {
   console.error('[Main] Unhandled rejection:', reason)
+  const msg = reason instanceof Error ? reason.message : String(reason)
+  const stack = reason instanceof Error ? reason.stack : undefined
+  diagnostics?.error('system', `Unhandled rejection: ${msg}`, { stack })
 })
 
 app.whenReady().then(() => {
@@ -829,6 +899,11 @@ app.whenReady().then(() => {
   })
 
   database = new Database()
+  // Initialize diagnostics (opt-in via settings)
+  const settings = database.getSettings()
+  diagnostics = new DiagnosticsEngine(!!(settings as unknown as Record<string, unknown>).diagnosticsEnabled)
+  diagnostics.info('system', `App started, version ${app.getVersion()}`)
+
   sessionManager = new SessionManager(database, (agentId, message) => {
     // Store parsed message in DB
     database.addMessage(agentId, message.role, message.contentType, message.content, message.metadata ?? undefined)
@@ -847,6 +922,12 @@ app.whenReady().then(() => {
     (agentId, data) => {
       mainWindow?.webContents.send('pty:data', agentId, data)
       chainOrchestrator?.handlePtyData(agentId, data)
+
+      // Parse PTY raw data into structured agent:output events
+      // so ActivityStream, ActivityLog, and Dashboard stats work in PTY mode
+      try {
+        parsePtyDataForActivityStream(agentId, data)
+      } catch { /* non-critical, don't break PTY data flow */ }
     },
     (agentId, status) => {
       handleStatusChangeWithNotification(agentId, status)
@@ -901,6 +982,7 @@ app.whenReady().then(() => {
 
   setupIPC()
   setupPtyIPC()
+  setupDiagnosticsIPC()
   createWindow()
   createTray()
 
@@ -991,5 +1073,57 @@ function setupPtyIPC(): void {
   ipcMain.handle('pty:scrollback', (_event, agentId: string) => {
     if (typeof agentId !== 'string') throw new Error('Invalid agentId')
     return ptySessionManager.getScrollback(agentId)
+  })
+
+  // Session conflict resolution — user explicitly chooses to recover
+  ipcMain.handle('pty:resolveConflict', async (_event, agentId: string) => {
+    if (typeof agentId !== 'string') throw new Error('Invalid agentId')
+    await ptySessionManager.resolveSessionConflict(agentId)
+  })
+}
+
+function setupDiagnosticsIPC(): void {
+  ipcMain.handle('diagnostics:getLogs', (_event, limit?: number, level?: string, category?: string) => {
+    if (!diagnostics) return []
+    return diagnostics.getLogs(
+      limit ?? 100,
+      level as import('./diagnostics').LogLevel | undefined,
+      category as import('./diagnostics').LogCategory | undefined
+    )
+  })
+
+  ipcMain.handle('diagnostics:getStats', () => {
+    if (!diagnostics) return { totalLogs: 0, errorCount: 0, warnCount: 0, fatalCount: 0, oldestLog: null, newestLog: null, logSizeBytes: 0 }
+    return diagnostics.getStats()
+  })
+
+  ipcMain.handle('diagnostics:export', async () => {
+    if (!diagnostics) return null
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow!, {
+      defaultPath: `claude-code-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'Diagnostic Logs', extensions: ['json'] }]
+    })
+    if (canceled || !filePath) return null
+    const { writeFileSync } = await import('fs')
+    writeFileSync(filePath, diagnostics.exportLogs(), 'utf-8')
+    return filePath
+  })
+
+  ipcMain.handle('diagnostics:clear', () => {
+    diagnostics?.clearLogs()
+  })
+
+  ipcMain.handle('diagnostics:setEnabled', (_event, enabled: boolean) => {
+    if (diagnostics) {
+      diagnostics.setEnabled(enabled)
+    } else {
+      diagnostics = new DiagnosticsEngine(enabled)
+    }
+    // Persist the setting
+    database.updateSettings({ diagnosticsEnabled: enabled } as unknown as Partial<import('@shared/types').AppSettings>)
+  })
+
+  ipcMain.handle('diagnostics:isEnabled', () => {
+    return diagnostics?.isEnabled() ?? false
   })
 }

@@ -18,12 +18,12 @@ const statusStyles: Record<AgentStatus, StatusStyle> = {
     badgeText: 'text-green-700 dark:text-green-400'
   },
   thinking: {
-    dot: 'bg-blue-500 animate-pulse',
+    dot: 'bg-blue-500 animate-status-glow text-blue-500',
     badge: 'bg-blue-500/15',
     badgeText: 'text-blue-700 dark:text-blue-400'
   },
   tool_running: {
-    dot: 'bg-yellow-500 animate-pulse',
+    dot: 'bg-yellow-500 animate-status-spin text-yellow-500',
     badge: 'bg-yellow-500/15',
     badgeText: 'text-yellow-700 dark:text-yellow-400'
   },
@@ -33,7 +33,7 @@ const statusStyles: Record<AgentStatus, StatusStyle> = {
     badgeText: 'text-orange-700 dark:text-orange-400'
   },
   error: {
-    dot: 'bg-red-500',
+    dot: 'bg-red-500 animate-status-blink text-red-500',
     badge: 'bg-red-500/15',
     badgeText: 'text-red-700 dark:text-red-400'
   },

@@ -109,18 +109,32 @@ export class PtySessionManager {
     }
 
     ptyProcess.onData((data: string) => {
-      this.onData(agent.id, data)
-      // Accumulate scrollback (max 50KB)
-      session.scrollbackBuffer = (session.scrollbackBuffer + data).slice(-50000)
-      this.detectAndUpdateStatus(session, data)
+      try {
+        this.onData(agent.id, data)
+        // Accumulate scrollback (max 50KB)
+        session.scrollbackBuffer = (session.scrollbackBuffer + data).slice(-50000)
+        this.detectAndUpdateStatus(session, data)
+      } catch (err) {
+        console.error(`[PtySession] onData error for ${agent.id}:`, err)
+      }
     })
 
     ptyProcess.onExit(({ exitCode }) => {
-      const status: AgentStatus = exitCode === 0 ? 'idle' : 'error'
-      this.database.updateAgent(agent.id, { status })
-      this.onStatusChange(agent.id, status)
-      this.onExit(agent.id, exitCode)
-      this.sessions.delete(agent.id)
+      try {
+        // Save scrollback to DB before deleting session
+        if (session.scrollbackBuffer) {
+          this.database.saveAllScrollbacks({ [agent.id]: session.scrollbackBuffer })
+        }
+        if (session._idleTimer) clearTimeout(session._idleTimer)
+        const status: AgentStatus = exitCode === 0 ? 'idle' : 'error'
+        this.database.updateAgent(agent.id, { status })
+        this.onStatusChange(agent.id, status)
+        this.onExit(agent.id, exitCode)
+      } catch (err) {
+        console.error(`[PtySession] onExit error for ${agent.id}:`, err)
+      } finally {
+        this.sessions.delete(agent.id)
+      }
     })
 
     this.sessions.set(agent.id, session)
@@ -211,37 +225,63 @@ export class PtySessionManager {
       session.lastOutputLine = lines[lines.length - 1].slice(0, 80)
     }
 
-    // Session conflict — highest priority, requires special handling
+    // Session conflict — notify UI instead of auto-killing
     if (/already in use/i.test(recentClean)) {
       this.setStatus(session, 'session_conflict')
-      this.handleSessionConflict(session)
+      // Do NOT auto-kill: let the user decide via SessionRecoveryDialog
+      console.warn(`[PtySession] Session conflict detected for ${session.agentId}. Awaiting user action.`)
       return
     }
 
+    // Tool execution patterns (Read, Write, Search, Bash, etc.)
+    if (/(?:Read|Write|Edit|Search|Bash|MultiTool|ListDir|Grep)\(/.test(recentClean) ||
+        /\btool uses\b/i.test(recentClean) ||
+        /\+\d+ more tool uses/i.test(recentClean)) {
+      this.setStatus(session, 'tool_running')
+    }
     // Spinner characters = actively thinking
-    if (/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(rawData)) {
+    else if (/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(rawData)) {
       this.setStatus(session, 'thinking')
+    }
+    // Awaiting user input (bypass permissions prompt or similar)
+    else if (/bypass permissions on/i.test(recentClean) ||
+             /Do you want to/i.test(recentClean) ||
+             /\(y\/n\)/i.test(recentClean)) {
+      this.setStatus(session, 'awaiting')
+    }
+    // Error detection
+    else if (/^Error:/im.test(recentClean) ||
+             /APIError|NetworkError|RateLimitError/i.test(recentClean)) {
+      this.setStatus(session, 'error')
     }
 
     // Always schedule an idle reset — if output stops, go back to active
     this.scheduleIdleReset(session)
   }
 
-  private handleSessionConflict(session: PtySession): void {
-    const retryCount = session._retryCount || 0
-    if (retryCount >= 2) return
-    const agent = this.database.getAgent(session.agentId)
+  /**
+   * Resolve session conflict by starting with a new session ID.
+   * Called from renderer via IPC when user explicitly chooses to recover.
+   */
+  async resolveSessionConflict(agentId: string): Promise<void> {
+    const agent = this.database.getAgent(agentId)
     if (!agent) return
 
-    this.stopSession(session.agentId)
+    // Save scrollback before stopping
+    const session = this.sessions.get(agentId)
+    if (session?.scrollbackBuffer) {
+      this.database.saveAllScrollbacks({ [agentId]: session.scrollbackBuffer })
+    }
+
+    this.stopSession(agentId)
     const newSessionId = uuidv4()
     this.database.updateAgent(agent.id, { claudeSessionId: newSessionId })
-    this.startSession({ ...agent, claudeSessionId: newSessionId }).then(() => {
-      const newSession = this.sessions.get(agent.id)
-      if (newSession) newSession._retryCount = retryCount + 1
-    }).catch(() => {
+    try {
+      await this.startSession({ ...agent, claudeSessionId: newSessionId })
+    } catch (err) {
+      console.error(`[PtySession] resolveSessionConflict failed for ${agentId}:`, err)
       this.database.updateAgent(agent.id, { status: 'error' })
       this.onStatusChange(agent.id, 'error')
-    })
+    }
   }
 }
