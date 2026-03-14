@@ -61,6 +61,10 @@ function PaneGrid({ onOpenScanner }: PaneGridProps): JSX.Element {
 
   const renderPane = (i: number): JSX.Element => {
     const agentId = paneAgentIds[i]
+    // Show Dashboard in first pane when no agent is selected globally
+    if (i === 0 && !selectedAgentId && !agentId) {
+      return <Dashboard fullHeight onOpenScanner={onOpenScanner} />
+    }
     if (!agentId) {
       return (
         <div className="flex flex-col h-full items-center justify-center bg-card text-muted-foreground gap-2">

@@ -74,7 +74,7 @@ export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
           </button>
         </div>
 
-        <div className="p-4 space-y-6 overflow-y-auto">
+        <div className="p-4 space-y-6 overflow-y-auto max-h-[calc(80vh-60px)] scrollbar-thin scrollbar-thumb-border">
           {/* Theme */}
           <div>
             <div className="flex items-center gap-2 text-sm font-medium mb-3">
@@ -246,7 +246,7 @@ export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
               <Settings2 size={16} />
               {t('settings.advanced', 'Advanced Configuration')}
             </div>
-            <div className="border border-border rounded-lg overflow-hidden h-[320px]">
+            <div className="border border-border rounded-lg overflow-hidden h-[240px]">
               <ConfigPanel />
             </div>
           </div>
