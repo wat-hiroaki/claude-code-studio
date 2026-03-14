@@ -27,6 +27,8 @@ export interface Agent {
   skills: string[]
   teamId: string | null
   reportTo: string | null
+  parentAgentId: string | null
+  isTemporary: boolean
   createdAt: string
   updatedAt: string
 }
@@ -35,6 +37,18 @@ export interface Team {
   id: string
   name: string
   color: string
+}
+
+export interface AgentDefinition {
+  id: string
+  name: string
+  icon: string | null
+  roleLabel: string | null
+  description: string
+  defaultProjectPath: string | null
+  systemPrompt: string | null
+  skills: string[]
+  createdAt: string
 }
 
 export type MessageRole = 'manager' | 'agent' | 'tool' | 'system'
@@ -352,9 +366,14 @@ export interface ElectronAPI {
   exportDatabase: () => Promise<string | null>
   getDatabasePath: () => Promise<string>
 
-  // Agent templates
+  // Agent templates (export/import)
   exportAgentTemplate: (agentId: string) => Promise<string>
   importAgentTemplate: () => Promise<AgentTemplate | null>
+
+  // Agent definitions (saved profiles)
+  getAgentDefinitions: () => Promise<AgentDefinition[]>
+  createAgentDefinition: (params: { name: string; icon?: string | null; roleLabel?: string | null; description: string; defaultProjectPath?: string | null; systemPrompt?: string | null; skills?: string[] }) => Promise<AgentDefinition>
+  deleteAgentDefinition: (id: string) => Promise<void>
 
   // App
   getAppVersion: () => Promise<string>

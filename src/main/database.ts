@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
-import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate } from '@shared/types'
+import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate, AgentDefinition } from '@shared/types'
 
 interface WindowBounds {
   x?: number
@@ -35,6 +35,7 @@ interface DBData {
   workspaces: Workspace[]
   tasks: Task[]
   promptTemplates: PromptTemplate[]
+  agentTemplates: AgentDefinition[]
   activeWorkspaceId: string | null
   settings: AppSettings
   nextMessageId: number
@@ -70,6 +71,7 @@ export class Database {
       workspaces: [],
       tasks: [],
       promptTemplates: [],
+      agentTemplates: [],
       activeWorkspaceId: null,
       settings: {
         usePtyMode: true,
@@ -108,7 +110,12 @@ export class Database {
     // Backfill agent-level fields added after initial release
     for (const agent of raw.agents as Record<string, unknown>[]) {
       if (agent.workspaceId === undefined) agent.workspaceId = null
+      if (agent.parentAgentId === undefined) agent.parentAgentId = null
+      if (agent.isTemporary === undefined) agent.isTemporary = false
     }
+
+    // Backfill agentTemplates
+    if (!Array.isArray(raw.agentTemplates)) raw.agentTemplates = []
 
     // Backfill sessionScrollbacks
     if (!raw.sessionScrollbacks || typeof raw.sessionScrollbacks !== 'object') {
@@ -173,6 +180,8 @@ export class Database {
       skills: params.skills ?? [],
       teamId: params.teamId ?? null,
       reportTo: params.reportTo ?? null,
+      parentAgentId: null,
+      isTemporary: false,
       createdAt: now,
       updatedAt: now
     }
@@ -482,6 +491,33 @@ export class Database {
 
   deleteTemplate(id: string): void {
     this.data.promptTemplates = this.data.promptTemplates.filter((t) => t.id !== id)
+    this.save()
+  }
+
+  // --- Agent Definitions ---
+  getAgentTemplates(): AgentDefinition[] {
+    return this.data.agentTemplates
+  }
+
+  createAgentTemplate(params: { name: string; icon?: string | null; roleLabel?: string | null; description: string; defaultProjectPath?: string | null; systemPrompt?: string | null; skills?: string[] }): AgentDefinition {
+    const tmpl: AgentDefinition = {
+      id: uuidv4(),
+      name: params.name,
+      icon: params.icon ?? null,
+      roleLabel: params.roleLabel ?? null,
+      description: params.description,
+      defaultProjectPath: params.defaultProjectPath ?? null,
+      systemPrompt: params.systemPrompt ?? null,
+      skills: params.skills ?? [],
+      createdAt: new Date().toISOString()
+    }
+    this.data.agentTemplates.push(tmpl)
+    this.save()
+    return tmpl
+  }
+
+  deleteAgentTemplate(id: string): void {
+    this.data.agentTemplates = this.data.agentTemplates.filter((t) => t.id !== id)
     this.save()
   }
 }

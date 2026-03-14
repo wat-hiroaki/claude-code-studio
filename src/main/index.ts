@@ -797,6 +797,19 @@ function setupIPC(): void {
     }
   })
 
+  // Agent Definitions (saved profiles)
+  ipcMain.handle('agentDef:list', async () => {
+    return database.getAgentTemplates()
+  })
+
+  ipcMain.handle('agentDef:create', async (_event, params) => {
+    return database.createAgentTemplate(params)
+  })
+
+  ipcMain.handle('agentDef:delete', async (_event, id: string) => {
+    database.deleteAgentTemplate(id)
+  })
+
   // CLI session discovery
   ipcMain.handle('session:list', async () => {
     const claudePath = sessionManager['claudePath'] ?? 'claude'

@@ -132,6 +132,11 @@ const api: ElectronAPI = {
   exportAgentTemplate: (agentId) => ipcRenderer.invoke('agent:exportTemplate', agentId),
   importAgentTemplate: () => ipcRenderer.invoke('agent:importTemplate'),
 
+  // Agent definitions (saved profiles)
+  getAgentDefinitions: () => ipcRenderer.invoke('agentDef:list'),
+  createAgentDefinition: (params) => ipcRenderer.invoke('agentDef:create', params),
+  deleteAgentDefinition: (id) => ipcRenderer.invoke('agentDef:delete', id),
+
   // Sessions
   listCliSessions: () => ipcRenderer.invoke('session:list'),
   attachSession: (agentId, sessionId) => ipcRenderer.invoke('session:attach', agentId, sessionId),
