@@ -38,9 +38,11 @@ interface AppState {
   showRightPane: boolean
   showBroadcast: boolean
   showDashboard: boolean
+  dashboardActiveView: 'orgChart' | 'skillMap' | 'kanban' | 'activityMap' | 'activityStream'
   toggleRightPane: () => void
   toggleBroadcast: () => void
   toggleDashboard: () => void
+  setDashboardActiveView: (view: 'orgChart' | 'skillMap' | 'kanban' | 'activityMap' | 'activityStream') => void
 
   // Layout
   paneLayout: 1 | 2 | 4
@@ -139,8 +141,10 @@ export const useAppStore = create<AppState>((set) => ({
   showRightPane: false,
   showBroadcast: false,
   showDashboard: true,
+  dashboardActiveView: 'orgChart',
   toggleRightPane: () => set((s) => ({ showRightPane: !s.showRightPane })),
   toggleBroadcast: () => set((s) => ({ showBroadcast: !s.showBroadcast })),
+  setDashboardActiveView: (view) => set({ dashboardActiveView: view }),
   toggleDashboard: () => set((s) => {
     if (s.paneLayout > 1) {
       // Multi-pane: toggle dashboard in pane 0

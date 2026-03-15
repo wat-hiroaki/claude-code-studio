@@ -1,7 +1,11 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { getInitials } from '../lib/status'
+import { PtyTerminalView } from './PtyTerminalView'
+import { TerminalView } from './TerminalView'
+import { Composer } from './Composer'
+import { X, GripHorizontal, Maximize2 } from 'lucide-react'
 import type { Agent, AgentStatus, Team } from '@shared/types'
 
 interface ActivityMapProps {
@@ -13,31 +17,30 @@ interface ActivityMapProps {
 // CYBER/HUD THEME DEFINITIONS
 // ---------------------------------------------------------
 const cyberPalette = {
-  bg: '#020617', // Extremely dark slate
-  cyan: '#00f3ff', // Neon Cyan
-  green: '#39ff14', // Matrix Green
-  emerald: '#10b981', // Softer green
-  amber: '#fbbf24', // Warning Yellow/Orange
-  orange: '#f97316',
-  red: '#ff003c', // Cyberpunk Red
-  purple: '#8b5cf6', // Magenta/Purple
-  gray: '#475569',
-  darkGray: '#1e293b',
-  grid: '#0f172a', // Grid lines
-  textMain: '#e2e8f0',
-  textMuted: '#94a3b8'
+  bg: '#09090b', // Deep zinc-950 for refined dark theme
+  accent: '#71717a', // Zinc-500
+  cyan: '#0ea5e9', // Sky blue for subtle tech feel
+  green: '#10b981', // Emerald
+  orange: '#f59e0b', // Amber
+  red: '#ef4444', // Red
+  purple: '#8b5cf6', // Violet
+  gray: '#52525b', // Zinc 600
+  darkGray: '#18181b', // Zinc 900
+  grid: '#18181b', // Very subtle grid
+  textMain: '#fafafa',
+  textMuted: '#a1a1aa'
 }
 
 type CyberStyle = { color: string; glow: string; label: string }
 
 const statusTheme: Record<AgentStatus, CyberStyle> = {
-  creating: { color: cyberPalette.gray, glow: 'rgba(71,85,105,0.5)', label: 'INIT' },
-  active: { color: cyberPalette.green, glow: 'rgba(57,255,20,0.6)', label: 'ACTIVE' },
-  thinking: { color: cyberPalette.cyan, glow: 'rgba(0,243,255,0.7)', label: 'COMPUTING' },
-  tool_running: { color: cyberPalette.amber, glow: 'rgba(251,191,36,0.6)', label: 'EXEC' },
-  awaiting: { color: cyberPalette.orange, glow: 'rgba(249,115,22,0.6)', label: 'AWAIT' },
-  error: { color: cyberPalette.red, glow: 'rgba(255,0,60,0.8)', label: 'ERR: CRITICAL' },
-  session_conflict: { color: cyberPalette.purple, glow: 'rgba(139,92,246,0.6)', label: 'CONFLICT' },
+  creating: { color: cyberPalette.gray, glow: 'rgba(82,82,91,0.4)', label: 'INIT' },
+  active: { color: cyberPalette.green, glow: 'rgba(16,185,129,0.4)', label: 'ACTIVE' },
+  thinking: { color: cyberPalette.cyan, glow: 'rgba(14,165,233,0.4)', label: 'COMPUTING' },
+  tool_running: { color: cyberPalette.orange, glow: 'rgba(245,158,11,0.4)', label: 'EXEC' },
+  awaiting: { color: cyberPalette.accent, glow: 'rgba(113,113,122,0.4)', label: 'AWAIT' },
+  error: { color: cyberPalette.red, glow: 'rgba(239,68,68,0.5)', label: 'ERR: CRITICAL' },
+  session_conflict: { color: cyberPalette.purple, glow: 'rgba(139,92,246,0.4)', label: 'CONFLICT' },
   idle: { color: cyberPalette.gray, glow: 'transparent', label: 'STANDBY' },
   archived: { color: cyberPalette.darkGray, glow: 'transparent', label: 'OFFLINE' }
 }
@@ -59,34 +62,6 @@ function groupByTeam(agents: Agent[], teams: Team[]) {
 }
 
 // ---------------------------------------------------------
-// HUD DATA STREAMS (Random decorative text)
-// ---------------------------------------------------------
-const HUDDataStream = ({ x, y }: { x: number; y: number }) => {
-  const [data, setData] = useState<string[]>([])
-
-  useEffect(() => {
-    const generateStr = () =>
-      Array.from({ length: 6 })
-        .map(() => Math.floor(Math.random() * 16).toString(16).toUpperCase())
-        .join('')
-    setData(Array.from({ length: 5 }).map(() => `0x${generateStr()}`))
-
-    const interval = setInterval(() => {
-      setData((prev) => [...prev.slice(1), `0x${generateStr()}`])
-    }, 1500 + Math.random() * 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <g transform={`translate(${x}, ${y})`} fill={cyberPalette.cyan} opacity={0.4} className="font-mono text-[8px]" style={{ userSelect: 'none' }}>
-      {data.map((str, i) => (
-        <text key={i} y={i * 12}>{str}</text>
-      ))}
-    </g>
-  )
-}
-
-// ---------------------------------------------------------
 // AGENT NODE (TARGET HUD)
 // ---------------------------------------------------------
 function AgentNode({ agent, x, y, onClick }: { agent: Agent; x: number; y: number; onClick: (id: string) => void }) {
@@ -95,7 +70,8 @@ function AgentNode({ agent, x, y, onClick }: { agent: Agent; x: number; y: numbe
   const isActive = ['active', 'thinking', 'tool_running', 'awaiting'].includes(agent.status)
   const isDanger = agent.status === 'error'
   
-  const coreRadius = 14
+  const coreRadius = 8
+  const workspaceName = agent.workspaceId ? agent.workspaceId.split('/').pop()?.split('\\').pop() : 'Default'
   
   return (
     <g
@@ -104,41 +80,32 @@ function AgentNode({ agent, x, y, onClick }: { agent: Agent; x: number; y: numbe
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* ターゲットロックオンのクロスヘア */}
+      {/* ターゲットロックオンのクロスヘア (洗練版) */}
       <path
-        d={`M ${x - 22} ${y - 22} L ${x - 16} ${y - 22}
-            M ${x - 22} ${y - 22} L ${x - 22} ${y - 16}
-            M ${x + 22} ${y - 22} L ${x + 16} ${y - 22}
-            M ${x + 22} ${y - 22} L ${x + 22} ${y - 16}
-            M ${x - 22} ${y + 22} L ${x - 16} ${y + 22}
-            M ${x - 22} ${y + 22} L ${x - 22} ${y + 16}
-            M ${x + 22} ${y + 22} L ${x + 16} ${y + 22}
-            M ${x + 22} ${y + 22} L ${x + 22} ${y + 16}`}
-        stroke={hovered ? cyberPalette.cyan : theme.color}
+        d={`M ${x - 18} ${y - 18} L ${x - 12} ${y - 18} M ${x - 18} ${y - 18} L ${x - 18} ${y - 12}
+            M ${x + 18} ${y - 18} L ${x + 12} ${y - 18} M ${x + 18} ${y - 18} L ${x + 18} ${y - 12}
+            M ${x - 18} ${y + 18} L ${x - 12} ${y + 18} M ${x - 18} ${y + 18} L ${x - 18} ${y + 12}
+            M ${x + 18} ${y + 18} L ${x + 12} ${y + 18} M ${x + 18} ${y + 18} L ${x + 18} ${y + 12}`}
+        stroke={hovered ? cyberPalette.textMain : theme.color}
         strokeWidth={1}
         fill="none"
-        opacity={hovered ? 1 : 0.5}
+        opacity={hovered ? 0.8 : 0.3}
       />
 
-      {/* 外側の回転リング (アクティブ時のみ) */}
+      {/* 外側の回転リング (アクティブ時のみ、控えめに) */}
       {isActive && (
         <g>
-          <circle cx={x} cy={y} r={18} fill="none" stroke={theme.color} strokeWidth={1} strokeDasharray="4 8" opacity={0.8}>
-            <animateTransform attributeName="transform" type="rotate" from={`0 ${x} ${y}`} to={`360 ${x} ${y}`} dur="6s" repeatCount="indefinite" />
+          <circle cx={x} cy={y} r={14} fill="none" stroke={theme.color} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.5}>
+            <animateTransform attributeName="transform" type="rotate" from={`0 ${x} ${y}`} to={`360 ${x} ${y}`} dur="8s" repeatCount="indefinite" />
           </circle>
-          {agent.status === 'thinking' && (
-            <circle cx={x} cy={y} r={24} fill="none" stroke={theme.color} strokeWidth={0.5} strokeDasharray="20 40 10 10">
-              <animateTransform attributeName="transform" type="rotate" from={`360 ${x} ${y}`} to={`0 ${x} ${y}`} dur="3s" repeatCount="indefinite" />
-            </circle>
-          )}
         </g>
       )}
 
       {/* エラー時の警告リップル */}
       {isDanger && (
-        <circle cx={x} cy={y} r={18} fill="none" stroke={theme.color} strokeWidth={2}>
-          <animate attributeName="r" values="14; 28" dur="1s" repeatCount="indefinite" />
-          <animate attributeName="opacity" values="1; 0" dur="1s" repeatCount="indefinite" />
+        <circle cx={x} cy={y} r={12} fill="none" stroke={theme.color} strokeWidth={1.5}>
+          <animate attributeName="r" values="8; 20" dur="1.5s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="1; 0" dur="1.5s" repeatCount="indefinite" />
         </circle>
       )}
 
@@ -149,72 +116,71 @@ function AgentNode({ agent, x, y, onClick }: { agent: Agent; x: number; y: numbe
         r={coreRadius}
         fill={cyberPalette.bg}
         stroke={theme.color}
-        strokeWidth={2}
-        filter={isDanger || isActive ? 'url(#cyber-glow)' : ''}
+        strokeWidth={1.5}
+        filter={isDanger ? 'url(#cyber-glow)' : ''}
       />
       {/* 内部コア */}
-      <circle cx={x} cy={y} r={4} fill={theme.color} className={isActive ? 'animate-pulse' : ''} />
+      <circle cx={x} cy={y} r={3} fill={theme.color} opacity={0.8} className={isActive ? 'animate-pulse' : ''} />
 
-      {/* テキスト - ブラケット付き Initials */}
-      <text x={x} y={y - 25} textAnchor="middle" className="font-mono text-[9px] font-bold tracking-widest" fill={theme.color} opacity={0.9} style={{ userSelect: 'none' }}>
-        [{getInitials(agent.name)}]
+      {/* テキスト - Initials */}
+      <text x={x} y={y - 20} textAnchor="middle" className="font-mono text-[9px] tracking-widest" fill={theme.color} opacity={0.8} style={{ userSelect: 'none' }}>
+        {getInitials(agent.name)}
       </text>
 
       {/* エージェント名 */}
-      <text x={x} y={y + 32} textAnchor="middle" className="font-mono text-[8px] uppercase tracking-wider" fill={cyberPalette.textMain} style={{ userSelect: 'none' }}>
-        {agent.name.length > 10 ? agent.name.slice(0, 9) + '..' : agent.name}
+      <text x={x} y={y + 26} textAnchor="middle" className="font-mono text-[8.5px] uppercase tracking-wider font-medium" fill={cyberPalette.textMain} style={{ userSelect: 'none' }}>
+        {agent.name.length > 12 ? agent.name.slice(0, 11) + '..' : agent.name}
       </text>
 
-      {/* ステータスバッジ */}
-      <rect x={x - 25} y={y + 40} width={50} height={12} fill={theme.color} opacity={0.15} />
-      <text x={x} y={y + 49} textAnchor="middle" className="font-mono text-[7px] font-bold uppercase tracking-widest" fill={theme.color} style={{ userSelect: 'none' }}>
+      {/* ワークスペース名追加 */}
+      <text x={x} y={y + 36} textAnchor="middle" className="font-mono text-[7px] uppercase tracking-wider" fill={cyberPalette.textMuted} style={{ userSelect: 'none' }}>
+        WKSP: {workspaceName?.slice(0, 10)}
+      </text>
+
+      {/* ステータスドット/バッジ (シンプル版) */}
+      <rect x={x - 20} y={y + 40} width={40} height={10} fill={theme.color} opacity={0.1} />
+      <text x={x} y={y + 48} textAnchor="middle" className="font-mono text-[6.5px] font-bold uppercase tracking-widest" fill={theme.color} style={{ userSelect: 'none', opacity: 0.9 }}>
         {theme.label}
       </text>
 
-      {/* Hover Info Panel (Holographic Tooltip) */}
+      {/* Hover Info Panel (Sleek Tooltip) */}
       {hovered && (
-        <foreignObject x={x + 30} y={y - 50} width={200} height={130} style={{ overflow: 'visible', zIndex: 100 }}>
+        <foreignObject x={x + 25} y={y - 40} width={180} height={110} style={{ overflow: 'visible', zIndex: 100 }}>
           <div
-            className="border shadow-2xl relative"
+            className="border shadow-xl relative"
             style={{
-              backgroundColor: 'rgba(2, 6, 23, 0.85)',
-              borderColor: theme.color,
-              boxShadow: `0 0 20px ${theme.glow}`,
-              backdropFilter: 'blur(4px)',
-              clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)',
-              padding: '12px',
+              backgroundColor: 'rgba(9, 9, 11, 0.9)', // zinc-950 with opacity
+              borderColor: 'rgba(82, 82, 91, 0.5)', // zinc-600
+              backdropFilter: 'blur(8px)',
+              padding: '10px',
               fontFamily: 'monospace',
               fontSize: '10px',
               color: cyberPalette.textMain
             }}
           >
-            {/* Corner tech lines */}
-            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2" style={{ borderColor: theme.color }} />
-            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2" style={{ borderColor: theme.color }} />
+            {/* Corner tech accent */}
+            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l" style={{ borderColor: theme.color }} />
             
-            <div style={{ color: theme.color, fontWeight: 'bold', fontSize: '13px', borderBottom: `1px solid ${theme.color}40`, paddingBottom: '4px', marginBottom: '8px' }}>
-              &gt; {agent.name.toUpperCase()}
+            <div style={{ color: cyberPalette.textMain, fontWeight: 'bold', fontSize: '11px', borderBottom: `1px solid rgba(82,82,91,0.5)`, paddingBottom: '4px', marginBottom: '6px' }}>
+              {agent.name}
             </div>
             
-            <div className="flex justify-between mb-1 opacity-80">
-              <span className="text-cyan-500">STS:</span>
-              <span style={{ color: theme.color }}>{agent.status.toUpperCase()}</span>
+            <div className="flex justify-between mb-1 opacity-90">
+              <span style={{ color: cyberPalette.textMuted }}>STATUS</span>
+              <span style={{ color: theme.color }}>{agent.status}</span>
             </div>
             {agent.workspaceId && (
-              <div className="flex justify-between mb-1 opacity-80">
-                <span className="text-cyan-500">WRK:</span>
-                <span className="truncate ml-2">{agent.workspaceId.split('/').pop()?.slice(0, 16)}</span>
+              <div className="flex justify-between mb-1 opacity-90">
+                <span style={{ color: cyberPalette.textMuted }}>WORKSP</span>
+                <span className="truncate ml-2 text-right">{workspaceName}</span>
               </div>
             )}
             {agent.currentTask && (
               <div className="mt-2 text-[9px] leading-tight" style={{ color: cyberPalette.textMuted }}>
-                <div className="text-cyan-600 mb-[2px]">TGT.TASK/</div>
-                <div className="break-all">{agent.currentTask.slice(0, 60)}{agent.currentTask.length > 60 ? '...' : ''}</div>
+                <div className="mb-[2px] opacity-70">CURRENT TASK:</div>
+                <div className="break-all">{agent.currentTask.slice(0, 50)}{agent.currentTask.length > 50 ? '...' : ''}</div>
               </div>
             )}
-            <div className="absolute bottom-1 right-2 text-[7px] text-gray-600">
-              [ {new Date(agent.updatedAt).toLocaleTimeString()} ]
-            </div>
           </div>
         </foreignObject>
       )}
@@ -239,7 +205,7 @@ function DataStreams({ agents, positions }: { agents: Agent[]; positions: Map<st
   return (
     <g>
       {lines.map((line, i) => {
-        const isActive = line.theme.color === cyberPalette.cyan || line.theme.color === cyberPalette.green || line.theme.color === cyberPalette.amber
+        const isActive = line.theme.color === cyberPalette.cyan || line.theme.color === cyberPalette.green || line.theme.color === cyberPalette.orange
         return (
           <g key={i}>
             {/* Base line */}
@@ -273,51 +239,36 @@ function DataStreams({ agents, positions }: { agents: Agent[]; positions: Map<st
 // ---------------------------------------------------------
 function SystemCore({ cx, cy, stats }: { cx: number; cy: number; stats: { total: number; active: number; error: number } }) {
   const isDanger = stats.error > 0
-  const coreColor = isDanger ? cyberPalette.red : cyberPalette.cyan
+  const coreColor = isDanger ? cyberPalette.red : cyberPalette.accent
   
   return (
     <g>
-      {/* MAGI-style background Hexagon */}
+      {/* Sleek Minimal Core Hexagon */}
       <polygon
-        points={`${cx},${cy-60} ${cx+52},${cy-30} ${cx+52},${cy+30} ${cx},${cy+60} ${cx-52},${cy+30} ${cx-52},${cy-30}`}
+        points={`${cx},${cy-45} ${cx+39},${cy-22.5} ${cx+39},${cy+22.5} ${cx},${cy+45} ${cx-39},${cy+22.5} ${cx-39},${cy-22.5}`}
         fill={cyberPalette.bg}
         stroke={coreColor}
         strokeWidth={1}
         opacity={0.8}
-        filter="url(#cyber-glow)"
       />
 
-      {/* Rotating complex rings */}
-      <circle cx={cx} cy={cy} r={75} fill="none" stroke={coreColor} strokeWidth={1} strokeDasharray="2 10 20 10" opacity={0.5}>
-        <animateTransform attributeName="transform" type="rotate" from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="20s" repeatCount="indefinite" />
-      </circle>
-      <circle cx={cx} cy={cy} r={85} fill="none" stroke={coreColor} strokeWidth={0.5} strokeDasharray="100 10 40 10">
-        <animateTransform attributeName="transform" type="rotate" from={`360 ${cx} ${cy}`} to={`0 ${cx} ${cy}`} dur="30s" repeatCount="indefinite" />
-      </circle>
-      <circle cx={cx} cy={cy} r={95} fill="none" stroke={cyberPalette.textMuted} strokeWidth={0.5} strokeDasharray="5 5 1 5" opacity={0.3}>
+      {/* Thin rotating ring */}
+      <circle cx={cx} cy={cy} r={60} fill="none" stroke={coreColor} strokeWidth={0.5} strokeDasharray="10 30" opacity={0.3}>
         <animateTransform attributeName="transform" type="rotate" from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="40s" repeatCount="indefinite" />
       </circle>
 
-      {/* Crosshairs inside hex */}
-      <line x1={cx - 50} y1={cy} x2={cx + 50} y2={cy} stroke={coreColor} strokeWidth={0.5} opacity={0.4} />
-      <line x1={cx} y1={cy - 50} x2={cx} y2={cy + 50} stroke={coreColor} strokeWidth={0.5} opacity={0.4} />
-
       {/* Core Text Elements */}
-      <text x={cx} y={cy - 20} textAnchor="middle" className="font-mono font-bold tracking-[0.2em] text-[18px]" fill={coreColor} style={{ userSelect: 'none' }} filter="url(#cyber-glow)">
+      <text x={cx} y={cy - 10} textAnchor="middle" className="font-mono font-medium tracking-[0.15em] text-[12px]" fill={cyberPalette.textMain} style={{ userSelect: 'none' }}>
         SYSTEM
-      </text>
-      <text x={cx} y={cy - 2} textAnchor="middle" className="font-mono text-[6px] tracking-widest uppercase" fill={cyberPalette.textMain} style={{ userSelect: 'none' }}>
-        CORE ORCHESTRATOR
       </text>
 
       {/* Health / Error display */}
-      <rect x={cx - 30} y={cy + 8} width={60} height={16} fill={coreColor} opacity={0.15} />
-      <text x={cx} y={cy + 20} textAnchor="middle" className="font-mono text-[10px] uppercase font-bold tracking-widest" fill={isDanger ? cyberPalette.red : cyberPalette.green} style={{ userSelect: 'none' }}>
-        {isDanger ? 'SYS: ERR' : 'SYS: OK'}
+      <text x={cx} y={cy + 10} textAnchor="middle" className="font-mono text-[9px] uppercase font-bold tracking-widest" fill={isDanger ? cyberPalette.red : cyberPalette.green} style={{ userSelect: 'none' }}>
+        {isDanger ? 'ERR' : 'OK'}
       </text>
 
       {/* Online Stats */}
-      <text x={cx} y={cy + 38} textAnchor="middle" className="font-mono text-[8px]" fill={cyberPalette.textMuted} style={{ userSelect: 'none' }}>
+      <text x={cx} y={cy + 25} textAnchor="middle" className="font-mono text-[7.5px]" fill={cyberPalette.textMuted} style={{ userSelect: 'none' }}>
         NODES: {stats.active}/{stats.total}
       </text>
     </g>
@@ -375,15 +326,65 @@ function CyberSectorLabel({ team, startAngle, endAngle, cx, cy, radius }: CyberS
 // MAIN EXPORT
 // ---------------------------------------------------------
 export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
-  const { t } = useTranslation()
-  const { agents } = useAppStore()
+  const { agents, usePtyMode } = useAppStore()
   const activeAgents = agents.filter((a) => a.status !== 'archived')
 
-  // Expanded HUD Canvas
+  // Pan, Zoom and Field Size States
+  const [scale, setScale] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [mapHeight, setMapHeight] = useState(500)
+  const isDraggingMap = useRef(false)
+  const lastMousePos = useRef({ x: 0, y: 0 })
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  // Cockpit view state
+  const [cockpitAgentId, setCockpitAgentId] = useState<string | null>(null)
+
+  const handleAgentNodeClick = (id: string) => {
+    setCockpitAgentId(id)
+  }
+
+  // Expanded HUD Canvas logical coords
   const svgWidth = 800
-  const svgHeight = 500
+  const svgHeight = 600
   const centerX = svgWidth / 2
   const centerY = svgHeight / 2
+
+  // Wheel event for Zoom
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        const ds = -e.deltaY * 0.002
+        setScale(s => Math.min(Math.max(0.4, s + ds), 4))
+      }
+    }
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [])
+
+  // Pan drag handles
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.target instanceof SVGElement && e.target.tagName === 'svg') {
+      isDraggingMap.current = true
+      lastMousePos.current = { x: e.clientX, y: e.clientY }
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
+  }
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (isDraggingMap.current) {
+      const dx = e.clientX - lastMousePos.current.x
+      const dy = e.clientY - lastMousePos.current.y
+      setPan(p => ({ x: p.x + dx, y: p.y + dy }))
+      lastMousePos.current = { x: e.clientX, y: e.clientY }
+    }
+  }
+  const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    isDraggingMap.current = false
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
 
   const { positions, teamSectors } = useMemo(() => {
     const pos = new Map<string, { x: number; y: number }>()
@@ -392,8 +393,7 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
 
     const groups = groupByTeam(activeAgents, teams)
     const totalAgents = activeAgents.length
-    // Agent orbit radius
-    const radius = 160 
+    const radius = 200 
 
     let currentIndex = 0
     for (const group of groups) {
@@ -418,108 +418,158 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
 
   if (activeAgents.length === 0) {
     return (
-      <div className="w-full flex items-center justify-center aspect-video bg-[#020617] border border-cyan-900 overflow-hidden font-mono relative">
-         <div className="text-cyan-500 text-sm tracking-widest opacity-50 flex flex-col items-center">
-            <span className="mb-2 uppercase">[ {t('agent.noAgents')} ]</span>
+      <div className="w-full flex items-center justify-center aspect-video bg-[#09090b] border border-zinc-800 overflow-hidden font-mono relative rounded-md">
+         <div className="text-zinc-500 text-sm tracking-widest opacity-50 flex flex-col items-center">
+            <span className="mb-2 uppercase">[ NO AGENTS ONLINE ]</span>
             <span className="animate-pulse">AWAITING SYSTEM INITIALIZATION...</span>
          </div>
       </div>
     )
   }
 
+  const cockpitAgent = cockpitAgentId ? agents.find(a => a.id === cockpitAgentId) : null
+
   return (
-    <div 
-      className="relative w-full rounded-md border shadow-2xl overflow-hidden select-none"
-      style={{
-        backgroundColor: cyberPalette.bg,
-        borderColor: 'rgba(6, 182, 212, 0.3)',
-        aspectRatio: '16/10'
-      }}
-    >
-      {/* Overlays / Radar FX */}
+    <div className="flex flex-col gap-1 w-full relative group">
       <div 
-        className="absolute inset-0 pointer-events-none opacity-20"
+        className="w-full rounded-md border shadow-xl overflow-hidden select-none cursor-grab active:cursor-grabbing relative"
         style={{
-          backgroundImage: `linear-gradient(transparent 50%, rgba(0,0,0,0.5) 50%)`,
-          backgroundSize: '100% 4px',
-          zIndex: 10
+          backgroundColor: cyberPalette.bg,
+          borderColor: 'rgba(82, 82, 91, 0.4)', // zinc-600
+          height: `${mapHeight}px`
         }}
-      />
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-cyan-900/10 via-transparent to-transparent z-10 block" />
+      >
+        {/* Subtle grid gradient */}
+        <div 
+          className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(${cyberPalette.textMain} 1px, transparent 1px), linear-gradient(90deg, ${cyberPalette.textMain} 1px, transparent 1px)`,
+            backgroundSize: '20px 20px',
+            backgroundPosition: `${pan.x}px ${pan.y}px` // Parallax grid
+          }}
+        />
 
-      {/* SVG Container */}
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full block">
-        <defs>
-          <filter id="cyber-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
+        {/* SVG Container */}
+        <svg 
+          ref={svgRef}
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`} 
+          className="w-full h-full block"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+        >
+          <defs>
+            <filter id="cyber-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
 
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke={cyberPalette.grid} strokeWidth="1" />
-            {/* Crosshairs at grid intersections */}
-            <path d="M -4 0 L 4 0 M 0 -4 L 0 4" stroke={cyberPalette.cyan} strokeWidth="0.5" opacity="0.3" transform="translate(0,0)" />
-          </pattern>
-        </defs>
+          {/* Draggable/Zoomable Canvas Content */}
+          <g transform={`translate(${pan.x}, ${pan.y}) scale(${scale})`} style={{ transformOrigin: `${centerX}px ${centerY}px` }}>
+            {/* Structural Elements */}
+            {teamSectors.map((s, i) => (
+               <CyberSectorLabel key={i} {...s} cx={centerX} cy={centerY} radius={230} />
+            ))}
 
-        {/* Background Layer */}
-        <rect width={svgWidth} height={svgHeight} fill="url(#grid)" />
-        
-        {/* Background Radar Spin */}
-        <g stroke={cyberPalette.cyan} strokeWidth={0.5} opacity={0.15}>
-          <line x1={centerX - 400} y1={centerY} x2={centerX + 400} y2={centerY} />
-          <line x1={centerX} y1={centerY - 300} x2={centerX} y2={centerY + 300} />
-        </g>
-        <path d={`M ${centerX} ${centerY} L ${centerX + 300} ${centerY - 100} L ${centerX + 300} ${centerY + 100} Z`} fill="url(#cyber-glow)" opacity={0.02} fillRule="evenodd">
-           <animateTransform attributeName="transform" type="rotate" from={`0 ${centerX} ${centerY}`} to={`360 ${centerX} ${centerY}`} dur="10s" repeatCount="indefinite" />
-        </path>
+            <DataStreams agents={activeAgents} positions={positions} />
+            <SystemCore cx={centerX} cy={centerY} stats={stats} />
 
-        {/* Outer Ring boundary */}
-        <circle cx={centerX} cy={centerY} r={280} fill="none" stroke={cyberPalette.cyan} strokeWidth={1} opacity={0.1} strokeDasharray="50 15" />
-
-        {/* Structural Elements */}
-        {teamSectors.map((s, i) => (
-          <CyberSectorLabel key={i} {...s} cx={centerX} cy={centerY} radius={185} />
-        ))}
-
-        {/* Lines */}
-        <DataStreams agents={activeAgents} positions={positions} />
-
-        {/* Core */}
-        <SystemCore cx={centerX} cy={centerY} stats={stats} />
-
-        {/* Nodes */}
-        {activeAgents.map((agent) => {
-          const pos = positions.get(agent.id)
-          if (!pos) return null
-          return <AgentNode key={agent.id} agent={agent} x={pos.x} y={pos.y} onClick={onAgentClick} />
-        })}
-
-        {/* Corner Decorators */}
-        <g opacity={0.5}>
-          <path d="M 20 60 L 20 20 L 60 20" fill="none" stroke={cyberPalette.cyan} strokeWidth={3} />
-          <path d="M 780 60 L 780 20 L 740 20" fill="none" stroke={cyberPalette.cyan} strokeWidth={3} />
-          <path d="M 20 440 L 20 480 L 60 480" fill="none" stroke={cyberPalette.cyan} strokeWidth={3} />
-          <path d="M 780 440 L 780 480 L 740 480" fill="none" stroke={cyberPalette.cyan} strokeWidth={3} />
+            {activeAgents.map((agent) => {
+              const pos = positions.get(agent.id)
+              if (!pos) return null
+              return <AgentNode key={agent.id} agent={agent} x={pos.x} y={pos.y} onClick={handleAgentNodeClick} />
+            })}
+          </g>
           
-          <rect x={25} y={65} width={4} height={20} fill={cyberPalette.cyan} />
-          <rect x={25} y={90} width={4} height={10} fill={cyberPalette.cyan} />
-          <rect x={771} y={65} width={4} height={40} fill={cyberPalette.cyan} opacity={0.5} />
-        </g>
+          {/* Static Corner Decorators */}
+          <g opacity={0.3}>
+            <path d="M 20 50 L 20 20 L 50 20" fill="none" stroke={cyberPalette.accent} strokeWidth={1} />
+            <path d={`M ${svgWidth - 20} 50 L ${svgWidth - 20} 20 L ${svgWidth - 50} 20`} fill="none" stroke={cyberPalette.accent} strokeWidth={1} />
+            <path d={`M 20 ${svgHeight - 50} L 20 ${svgHeight - 20} L 50 ${svgHeight - 20}`} fill="none" stroke={cyberPalette.accent} strokeWidth={1} />
+            <path d={`M ${svgWidth - 20} ${svgHeight - 50} L ${svgWidth - 20} ${svgHeight - 20} L ${svgWidth - 50} ${svgHeight - 20}`} fill="none" stroke={cyberPalette.accent} strokeWidth={1} />
+          </g>
 
-        {/* Data Streams Overlay */}
-        <HUDDataStream x={40} y={150} />
-        <HUDDataStream x={730} y={350} />
-        
-        {/* Footer info */}
-        <text x={centerX} y={svgHeight - 20} textAnchor="middle" className="font-mono text-[8px] uppercase tracking-[0.3em] fill-cyan-700/60" style={{ userSelect: 'none' }}>
-           CLAUDE-AGENTDECK :: NEURAL LINK ESTABLISHED :: TERMINAL ACTIVE
-        </text>
-      </svg>
+          {/* Footer info fixed to canvas bottom */}
+          <text x={centerX} y={svgHeight - 15} textAnchor="middle" className="font-mono text-[7px] uppercase tracking-[0.4em]" fill={cyberPalette.accent} opacity={0.5} style={{ userSelect: 'none' }}>
+            CLAUDE-AGENTDECK :: TACTICAL OVERVIEW
+          </text>
+        </svg>
+
+        {/* Cockpit Overlay */}
+        {cockpitAgent && (
+          <div className="absolute right-4 top-4 bottom-4 w-96 max-w-[50%] bg-[#09090b]/95 border border-zinc-700 rounded-lg shadow-2xl flex flex-col overflow-hidden backdrop-blur-md animate-in slide-in-from-right-8 duration-200">
+            {/* Header */}
+            <div className="h-10 border-b border-zinc-800 flex items-center justify-between px-3 shrink-0 bg-zinc-900/50">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusTheme[cockpitAgent.status].color }} />
+                <span className="font-mono text-xs font-semibold">{cockpitAgent.name}</span>
+                <span className="text-[10px] text-zinc-500 font-mono ml-2 border border-zinc-800 px-1 rounded">COCKPIT</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    onAgentClick(cockpitAgent.id)
+                    setCockpitAgentId(null)
+                  }}
+                  className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                  title="Open Full View"
+                >
+                  <Maximize2 size={13} />
+                </button>
+                <button 
+                  onClick={() => setCockpitAgentId(null)}
+                  className="p-1 hover:bg-red-900/50 rounded text-zinc-400 hover:text-red-400 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+            {/* Terminal Area */}
+            <div className="flex-1 min-h-0 bg-black relative p-2">
+              {usePtyMode ? (
+                <PtyTerminalView agentId={cockpitAgent.id} compact />
+              ) : (
+                <TerminalView agentId={cockpitAgent.id} compact />
+              )}
+            </div>
+            {/* Composer Area */}
+            <div className="shrink-0 border-t border-zinc-800 bg-zinc-950 p-2">
+              <Composer agentId={cockpitAgent.id} />
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Field Size Adjust Handle */}
+      <div 
+        className="w-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-ns-resize py-1"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          const startY = e.clientY
+          const startHeight = mapHeight
+          
+          const onMove = (me: PointerEvent) => {
+            const delta = me.clientY - startY
+            // Limit bounds between 300px and 1200px
+            setMapHeight(Math.max(300, Math.min(startHeight + delta, 1200)))
+          }
+          const onUp = () => {
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+          }
+          window.addEventListener('pointermove', onMove)
+          window.addEventListener('pointerup', onUp)
+        }}
+      >
+        <div className="h-1.5 w-16 bg-zinc-700/50 hover:bg-zinc-500 rounded-full flex items-center justify-center">
+          <GripHorizontal size={10} className="text-zinc-400" />
+        </div>
+      </div>
     </div>
   )
 }

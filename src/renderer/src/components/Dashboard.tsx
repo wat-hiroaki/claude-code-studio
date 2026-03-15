@@ -24,9 +24,8 @@ interface DashboardProps {
 
 export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.Element {
   const { t } = useTranslation()
-  const { teamStats, setSelectedAgent } = useAppStore()
+  const { teamStats, setSelectedAgent, dashboardActiveView, setDashboardActiveView } = useAppStore()
   const [showDailyReport, setShowDailyReport] = useState(false)
-  const [activeView, setActiveView] = useState<DashboardView>('orgChart')
   const [teams, setTeams] = useState<Team[]>([])
   const [showNewTeam, setShowNewTeam] = useState(false)
   const [newTeamName, setNewTeamName] = useState('')
@@ -141,10 +140,10 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
           {views.map(({ key, icon: Icon, label }) => (
             <button
               key={key}
-              onClick={() => setActiveView(key)}
+              onClick={() => setDashboardActiveView(key)}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors',
-                activeView === key
+                dashboardActiveView === key
                   ? 'bg-card shadow-sm font-medium'
                   : 'text-muted-foreground hover:text-foreground'
               )}
@@ -212,11 +211,11 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
 
       {/* Active View */}
       <div className="min-h-[120px]">
-        {activeView === 'orgChart' && <OrgChart teams={teams} onAgentClick={handleAgentClick} />}
-        {activeView === 'skillMap' && <SkillMap onAgentClick={handleAgentClick} />}
-        {activeView === 'kanban' && <KanbanBoard />}
-        {activeView === 'activityMap' && <ActivityMap teams={teams} onAgentClick={handleAgentClick} />}
-        {activeView === 'activityStream' && <ActivityStream className="h-[300px] relative" />}
+        {dashboardActiveView === 'orgChart' && <OrgChart teams={teams} onAgentClick={handleAgentClick} />}
+        {dashboardActiveView === 'skillMap' && <SkillMap onAgentClick={handleAgentClick} />}
+        {dashboardActiveView === 'kanban' && <KanbanBoard />}
+        {dashboardActiveView === 'activityMap' && <ActivityMap teams={teams} onAgentClick={handleAgentClick} />}
+        {dashboardActiveView === 'activityStream' && <ActivityStream className="h-[300px] relative" />}
       </div>
 
       {/* Activity Log */}

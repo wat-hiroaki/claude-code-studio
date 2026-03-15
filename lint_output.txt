@@ -1,0 +1,28 @@
+
+> claude-code-desktop@0.5.0 lint
+> eslint . --ext .ts,.tsx
+
+
+C:\Users\user\claude-code-desktop\src\main\chain-orchestrator.ts
+  137:30  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\user\claude-code-desktop\src\main\database.ts
+  236:9  error  Unnecessary semicolon  no-extra-semi
+  447:9  error  Unnecessary semicolon  no-extra-semi
+  515:9  error  Unnecessary semicolon  no-extra-semi
+
+C:\Users\user\claude-code-desktop\src\main\index.ts
+    48:9   error  'role' is never reassigned. Use 'const' instead  prefer-const
+   103:60  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   192:18  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   262:9   error  Unnecessary semicolon                            no-extra-semi
+   262:18  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  1035:3   error  Unnecessary semicolon                            no-extra-semi
+  1035:12  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\user\claude-code-desktop\src\renderer\src\components\ActivityMap.tsx
+  2:10  warning  'useTranslation' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 12 problems (11 errors, 1 warning)
+  6 errors and 0 warnings potentially fixable with the `--fix` option.
+
