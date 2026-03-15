@@ -38,7 +38,7 @@ interface AppState {
   showRightPane: boolean
   showBroadcast: boolean
   showDashboard: boolean
-  dashboardActiveView: 'activityMap' | 'chainGraph' | 'activityStream' | 'scheduler'
+  dashboardActiveView: 'activityMap' | 'chainGraph' | 'scheduler'
   toggleRightPane: () => void
   toggleBroadcast: () => void
   toggleDashboard: () => void

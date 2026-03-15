@@ -38,7 +38,7 @@ const stripAnsi = (str: string): string =>
     .replace(/\s+/g, ' ')
     .trim()
 
-export function ActivityStream({ className }: { className?: string }): JSX.Element {
+export function ActivityStream({ className, onAgentClick }: { className?: string; onAgentClick?: (id: string) => void }): JSX.Element {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [autoScroll, setAutoScroll] = useState(true)
   const [filterType, setFilterType] = useState<ActivityEvent['type'] | 'all'>('all')
@@ -55,9 +55,17 @@ export function ActivityStream({ className }: { className?: string }): JSX.Eleme
     return Array.from(ids)
   }, [agents])
 
-  // Parse PTY output into activity events
+  // Parse PTY output + status changes into activity events
   useEffect(() => {
-    const unsub = window.api.onAgentOutput((agentId, message) => {
+    const pushEvent = (evt: ActivityEvent): void => {
+      setEvents((prev) => {
+        const next = [...prev, evt]
+        if (next.length > MAX_EVENTS) next.splice(0, next.length - MAX_EVENTS)
+        return next
+      })
+    }
+
+    const unsubOutput = window.api.onAgentOutput((agentId, message) => {
       const agent = agents.find((a) => a.id === agentId)
       const name = agent?.name ?? agentId.slice(0, 8)
 
@@ -82,7 +90,7 @@ export function ActivityStream({ className }: { className?: string }): JSX.Eleme
 
       if (!content.trim()) return
 
-      const evt: ActivityEvent = {
+      pushEvent({
         id: ++eventIdCounter,
         agentId,
         agentName: name,
@@ -90,16 +98,27 @@ export function ActivityStream({ className }: { className?: string }): JSX.Eleme
         type,
         content: content.replace(/\n/g, ' ').trim(),
         timestamp: new Date()
-      }
-
-      setEvents((prev) => {
-        const next = [...prev, evt]
-        if (next.length > MAX_EVENTS) next.splice(0, next.length - MAX_EVENTS)
-        return next
       })
     })
 
-    return unsub
+    const unsubStatus = window.api.onAgentStatusChange((agentId, status) => {
+      if (!['idle', 'error', 'awaiting'].includes(status)) return
+      const agent = agents.find((a) => a.id === agentId)
+      const name = agent?.name ?? agentId.slice(0, 8)
+      const typeMap: Record<string, ActivityEvent['type']> = { idle: 'complete', error: 'error', awaiting: 'output' }
+      const labelMap: Record<string, string> = { idle: 'Task completed', error: 'Error occurred', awaiting: 'Approval required' }
+      pushEvent({
+        id: ++eventIdCounter,
+        agentId,
+        agentName: name,
+        workspaceId: agent?.workspaceId ?? undefined,
+        type: typeMap[status] ?? 'output',
+        content: labelMap[status] ?? status,
+        timestamp: new Date()
+      })
+    })
+
+    return () => { unsubOutput(); unsubStatus() }
   }, [agents])
 
   // Auto-scroll
@@ -195,9 +214,11 @@ export function ActivityStream({ className }: { className?: string }): JSX.Eleme
               return (
                 <div
                   key={evt.id}
+                  onClick={() => onAgentClick?.(evt.agentId)}
                   className={cn(
                     'flex items-start gap-2 px-2 py-1 rounded text-[11px] transition-colors hover:bg-muted/30',
-                    'animate-in fade-in slide-in-from-left-2 duration-200'
+                    'animate-in fade-in slide-in-from-left-2 duration-200',
+                    onAgentClick && 'cursor-pointer'
                   )}
                 >
                   <span className="text-[9px] text-muted-foreground/50 font-mono shrink-0 mt-0.5 w-[52px]">

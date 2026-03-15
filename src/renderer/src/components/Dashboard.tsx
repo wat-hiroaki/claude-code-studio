@@ -6,7 +6,6 @@ import {
   GitBranch, Plus, X, HardDrive, Brain, Radar, Calendar
 } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { ActivityLog } from './ActivityLog'
 import { DailyReport } from './DailyReport'
 import { ActivityMap } from './ActivityMap'
 import { ChainGraph } from './ChainGraph'
@@ -14,7 +13,7 @@ import { ActivityStream } from './ActivityStream'
 import { ScheduledTasksPanel } from './ScheduledTasksPanel'
 import type { Team } from '@shared/types'
 
-type DashboardView = 'activityMap' | 'chainGraph' | 'activityStream' | 'scheduler'
+type DashboardView = 'activityMap' | 'chainGraph' | 'scheduler'
 
 interface DashboardProps {
   onOpenScanner?: () => void
@@ -59,7 +58,6 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
   const views: { key: DashboardView; icon: typeof Radar; label: string }[] = [
     { key: 'activityMap', icon: Radar, label: t('teamMgmt.activityMap') },
     { key: 'chainGraph', icon: GitBranch, label: t('teamMgmt.chainGraph', 'Chain Graph') },
-    { key: 'activityStream', icon: Brain, label: t('teamMgmt.activityStream', 'Activity Stream') },
     { key: 'scheduler', icon: Calendar, label: t('teamMgmt.scheduler', 'Scheduler') }
   ]
 
@@ -211,14 +209,21 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
 
       {/* Active View */}
       <div className="min-h-[120px]">
-        {dashboardActiveView === 'activityMap' && <ActivityMap teams={teams} onAgentClick={handleAgentClick} />}
+        {dashboardActiveView === 'activityMap' && (
+          <div className="flex gap-2">
+            {/* Activity Stream — left sidebar */}
+            <div className="w-72 shrink-0 border border-border rounded-md overflow-hidden bg-card">
+              <ActivityStream className="h-[500px]" onAgentClick={handleAgentClick} />
+            </div>
+            {/* Activity Map — main area */}
+            <div className="flex-1 min-w-0">
+              <ActivityMap teams={teams} onAgentClick={handleAgentClick} />
+            </div>
+          </div>
+        )}
         {dashboardActiveView === 'chainGraph' && <ChainGraph onAgentClick={handleAgentClick} />}
-        {dashboardActiveView === 'activityStream' && <ActivityStream className="h-[300px] relative" />}
         {dashboardActiveView === 'scheduler' && <ScheduledTasksPanel />}
       </div>
-
-      {/* Activity Log */}
-      <ActivityLog />
 
       {showDailyReport && (
         <DailyReport onClose={() => setShowDailyReport(false)} />
