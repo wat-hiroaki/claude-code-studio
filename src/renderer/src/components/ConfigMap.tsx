@@ -237,12 +237,14 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
   }, [resolvedPath])
 
   // Wheel zoom (Ctrl/Cmd + wheel only, matching ActivityMap)
+  // Attach to the container div to catch events before they reach the browser zoom handler
   useEffect(() => {
-    const el = svgRef.current
+    const el = containerRef.current
     if (!el) return
     const handleWheel = (e: WheelEvent): void => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault()
+        e.stopPropagation()
         const ds = -e.deltaY * 0.002
         setScale(s => Math.min(Math.max(0.3, s + ds), 4))
       }
