@@ -272,7 +272,11 @@
       "overrides": "上書き",
       "references": "参照",
       "configures": "構成"
-    }
+    },
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "zoomFit": "全体表示",
+    "zoomReset": "リセット"
   },
   "agentTeams": {
     "external": "外部CLI",

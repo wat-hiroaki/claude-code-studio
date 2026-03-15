@@ -65,7 +65,7 @@ export function ConfigMapNode({ node, x, y, palette, isConflicted, isSelected, o
   const categoryColor = (CATEGORY_COLORS[node.category] ?? (() => palette.accent))(palette)
   const levelColor = (LEVEL_COLORS[node.level] ?? (() => palette.accent))(palette)
   const icon = CATEGORY_ICONS[node.category] || '\u25CB'
-  const nodeRadius = 28
+  const nodeRadius = 26
 
   return (
     <g

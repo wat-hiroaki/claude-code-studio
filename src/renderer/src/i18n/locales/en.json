@@ -272,7 +272,11 @@
       "overrides": "Overrides",
       "references": "References",
       "configures": "Configures"
-    }
+    },
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "zoomFit": "Fit to View",
+    "zoomReset": "Reset View"
   },
   "agentTeams": {
     "external": "External CLI",
