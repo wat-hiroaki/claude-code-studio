@@ -116,6 +116,31 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
       window.api.ptyWrite(agentId, data)
     })
 
+    // Ctrl+C: copy if text is selected, otherwise send interrupt to PTY
+    terminal.attachCustomKeyEventHandler((e) => {
+      if (e.type !== 'keydown') return true
+      // Ctrl+C with selection → copy to clipboard
+      if (e.ctrlKey && e.key === 'c' && terminal.hasSelection()) {
+        navigator.clipboard.writeText(terminal.getSelection())
+        terminal.clearSelection()
+        return false // prevent sending to PTY
+      }
+      // Ctrl+Shift+C → always copy
+      if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        const sel = terminal.getSelection()
+        if (sel) navigator.clipboard.writeText(sel)
+        return false
+      }
+      // Ctrl+V → paste from clipboard
+      if (e.ctrlKey && e.key === 'v') {
+        navigator.clipboard.readText().then((text) => {
+          if (text) window.api.ptyWrite(agentId, text)
+        })
+        return false
+      }
+      return true // let all other keys pass through to PTY
+    })
+
     // Right-click context menu: copy selection
     terminal.element?.addEventListener('contextmenu', (e) => {
       const selection = terminal.getSelection()
