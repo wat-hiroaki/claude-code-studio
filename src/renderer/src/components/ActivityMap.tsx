@@ -110,6 +110,25 @@ function groupByTeam(agents: Agent[], teams: Team[]) {
   return groups.filter((g) => g.agents.length > 0)
 }
 
+/** Group agents by workspace first, then sort within each group by team */
+function groupByWorkspace(agents: Agent[], workspaceNames: Map<string, string>) {
+  const wsGroups = new Map<string, { wsId: string; wsName: string; agents: Agent[] }>()
+
+  for (const agent of agents) {
+    const wsId = agent.workspaceId || '__default__'
+    if (!wsGroups.has(wsId)) {
+      wsGroups.set(wsId, {
+        wsId,
+        wsName: workspaceNames.get(wsId) || 'Default',
+        agents: []
+      })
+    }
+    wsGroups.get(wsId)!.agents.push(agent)
+  }
+
+  return [...wsGroups.values()].sort((a, b) => b.agents.length - a.agents.length)
+}
+
 // ---------------------------------------------------------
 // AGENT NODE (TARGET HUD)
 // ---------------------------------------------------------
@@ -509,28 +528,83 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
     e.currentTarget.releasePointerCapture(e.pointerId)
   }
 
-  const { positions, teamSectors } = useMemo(() => {
+  const { positions, teamSectors, wsClusterLabels } = useMemo(() => {
     const pos = new Map<string, { x: number; y: number }>()
     const sectors: { team: Team | null; startAngle: number; endAngle: number }[] = []
-    if (activeAgents.length === 0) return { positions: pos, teamSectors: sectors }
+    const wsLabels: { wsName: string; x: number; y: number; color: string }[] = []
+    if (activeAgents.length === 0) return { positions: pos, teamSectors: sectors, wsClusterLabels: wsLabels }
 
-    const groups = groupByTeam(activeAgents, teams)
-    const totalAgents = activeAgents.length
-    const radius = 200 
+    const wsGroups = groupByWorkspace(activeAgents, workspaceNameMap)
+    const hasMultipleWorkspaces = wsGroups.length > 1 || (wsGroups.length === 1 && wsGroups[0].agents.length > 1)
 
-    let currentIndex = 0
-    for (const group of groups) {
-      const startAngle = (2 * Math.PI * currentIndex) / totalAgents - Math.PI / 2
-      for (let i = 0; i < group.agents.length; i++) {
-        const position = getRadialPosition(currentIndex + i, totalAgents, centerX, centerY, radius)
-        pos.set(group.agents[i].id, position)
+    if (hasMultipleWorkspaces && wsGroups.some(g => g.agents.length > 1)) {
+      // Workspace-based clustering: each workspace gets an arc segment
+      const totalAgents = activeAgents.length
+      const mainRadius = 200
+      const clusterOffset = 35 // agents within same workspace cluster tighter
+
+      let currentIndex = 0
+      for (const wsGroup of wsGroups) {
+        const agentCount = wsGroup.agents.length
+        const startAngle = (2 * Math.PI * currentIndex) / totalAgents - Math.PI / 2
+
+        if (agentCount === 1) {
+          // Single agent — place on main radius
+          const position = getRadialPosition(currentIndex, totalAgents, centerX, centerY, mainRadius)
+          pos.set(wsGroup.agents[0].id, position)
+        } else {
+          // Multiple agents — cluster them around a shared anchor point
+          const midIndex = currentIndex + (agentCount - 1) / 2
+          const anchorAngle = (2 * Math.PI * midIndex) / totalAgents - Math.PI / 2
+          const anchorX = centerX + mainRadius * Math.cos(anchorAngle)
+          const anchorY = centerY + mainRadius * Math.sin(anchorAngle)
+
+          for (let i = 0; i < agentCount; i++) {
+            const subAngle = (2 * Math.PI * i) / agentCount - Math.PI / 2
+            const x = anchorX + clusterOffset * Math.cos(subAngle)
+            const y = anchorY + clusterOffset * Math.sin(subAngle)
+            pos.set(wsGroup.agents[i].id, { x, y })
+          }
+
+          // Workspace cluster label
+          const labelRadius = mainRadius + 55
+          wsLabels.push({
+            wsName: wsGroup.wsName,
+            x: centerX + labelRadius * Math.cos(anchorAngle),
+            y: centerY + labelRadius * Math.sin(anchorAngle),
+            color: '#71717a'
+          })
+        }
+
+        // Build team sectors for compatibility
+        const endAngle = (2 * Math.PI * (currentIndex + agentCount)) / totalAgents - Math.PI / 2
+        const teamForGroup = teams.find(t =>
+          wsGroup.agents.some(a => a.teamId === t.id)
+        )
+        sectors.push({ team: teamForGroup ?? null, startAngle, endAngle })
+
+        currentIndex += agentCount
       }
-      const endAngle = (2 * Math.PI * (currentIndex + group.agents.length)) / totalAgents - Math.PI / 2
-      sectors.push({ team: group.team, startAngle, endAngle })
-      currentIndex += group.agents.length
+    } else {
+      // Fallback: original team-based grouping
+      const groups = groupByTeam(activeAgents, teams)
+      const totalAgents = activeAgents.length
+      const radius = 200
+
+      let currentIndex = 0
+      for (const group of groups) {
+        const startAngle = (2 * Math.PI * currentIndex) / totalAgents - Math.PI / 2
+        for (let i = 0; i < group.agents.length; i++) {
+          const position = getRadialPosition(currentIndex + i, totalAgents, centerX, centerY, radius)
+          pos.set(group.agents[i].id, position)
+        }
+        const endAngle = (2 * Math.PI * (currentIndex + group.agents.length)) / totalAgents - Math.PI / 2
+        sectors.push({ team: group.team, startAngle, endAngle })
+        currentIndex += group.agents.length
+      }
     }
-    return { positions: pos, teamSectors: sectors }
-  }, [activeAgents, teams, centerX, centerY])
+    return { positions: pos, teamSectors: sectors, wsClusterLabels: wsLabels }
+  }, [activeAgents, teams, centerX, centerY, workspaceNameMap])
 
   const stats = useMemo(() => {
     const total = activeAgents.length
@@ -598,6 +672,16 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
             {/* Structural Elements */}
             {teamSectors.map((s, i) => (
                <CyberSectorLabel key={i} {...s} cx={centerX} cy={centerY} radius={230} palette={palette} />
+            ))}
+
+            {/* Workspace cluster labels */}
+            {wsClusterLabels.map((ws, i) => (
+              <g key={`ws-${i}`}>
+                <rect x={ws.x - 38} y={ws.y - 7} width={76} height={14} fill={palette.bg} stroke={palette.accent} strokeWidth={0.4} rx={3} opacity={0.85} />
+                <text x={ws.x} y={ws.y + 3} textAnchor="middle" className="font-mono text-[7px] uppercase tracking-wider" fill={palette.accent} style={{ userSelect: 'none' }}>
+                  {ws.wsName.length > 12 ? ws.wsName.slice(0, 11) + '..' : ws.wsName}
+                </text>
+              </g>
             ))}
 
             <DataStreams agents={activeAgents} positions={positions} palette={palette} statusTheme={statusTheme} />

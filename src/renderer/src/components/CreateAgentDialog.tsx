@@ -26,7 +26,7 @@ export function CreateAgentDialog({ onClose, prefill }: CreateAgentDialogProps):
   const [showAdvanced, setShowAdvanced] = useState(false)
   const activeAgents = agents.filter((a) => a.status !== 'archived')
 
-  // Load active workspace info
+  // Load active workspace info and auto-fill path
   useEffect(() => {
     const wsId = useAppStore.getState().activeWorkspaceId
     if (!wsId) {
@@ -34,9 +34,19 @@ export function CreateAgentDialog({ onClose, prefill }: CreateAgentDialogProps):
       return
     }
     window.api.getWorkspaces().then((wsList) => {
-      setActiveWorkspace(wsList.find((w) => w.id === wsId) ?? null)
+      const ws = wsList.find((w) => w.id === wsId) ?? null
+      setActiveWorkspace(ws)
+      // Auto-fill project path from workspace if no prefill was provided
+      if (ws?.path && !prefill) {
+        setProjectPath(ws.path)
+        const parts = ws.path.replace(/\\/g, '/').split('/')
+        const folderName = parts[parts.length - 1] || ''
+        if (!projectName.trim()) {
+          setProjectName(folderName || ws.name)
+        }
+      }
     })
-  }, [])
+  }, [prefill])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
