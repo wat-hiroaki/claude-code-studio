@@ -578,7 +578,7 @@ function setupIPC(): void {
     } catch {
       // Ignore polling errors
     }
-  }, 15000)
+  }, 30000)
 
   // Dialog
   ipcMain.handle('dialog:selectFolder', async () => {

@@ -251,7 +251,9 @@ export class Database {
     return agent
   }
 
-  // Messages
+  // Messages (capped at 200 per agent to prevent unbounded memory growth)
+  private static readonly MAX_MESSAGES_PER_AGENT = 200
+
   addMessage(agentId: string, role: string, contentType: string, content: string, metadata?: Record<string, unknown>): Message {
     const msg: Message = {
       id: this.data.nextMessageId++,
@@ -263,6 +265,20 @@ export class Database {
       createdAt: new Date().toISOString()
     }
     this.data.messages.push(msg)
+
+    // Prune oldest messages for this agent if over limit
+    const agentMsgs = this.data.messages.filter(m => m.agentId === agentId)
+    if (agentMsgs.length > Database.MAX_MESSAGES_PER_AGENT) {
+      const toRemove = agentMsgs.length - Database.MAX_MESSAGES_PER_AGENT
+      const idsToRemove = new Set(
+        agentMsgs
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .slice(0, toRemove)
+          .map(m => m.id)
+      )
+      this.data.messages = this.data.messages.filter(m => !idsToRemove.has(m.id))
+    }
+
     this.save()
     return msg
   }

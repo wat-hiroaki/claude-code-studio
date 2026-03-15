@@ -270,6 +270,11 @@ export class SessionManager {
   private handleChunk(session: Session, chunk: string): void {
     session.lineBuffer += chunk
 
+    // Cap lineBuffer to prevent unbounded growth from long lines
+    if (session.lineBuffer.length > 100000) {
+      session.lineBuffer = session.lineBuffer.slice(-50000)
+    }
+
     // Process complete lines only
     const lines = session.lineBuffer.split('\n')
     // Keep the last incomplete line in the buffer

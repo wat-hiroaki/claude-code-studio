@@ -107,14 +107,13 @@ export const useAppStore = create<AppState>((set) => ({
   // Messages
   messages: {},
   setMessages: (agentId, messages) =>
-    set((state) => ({ messages: { ...state.messages, [agentId]: messages } })),
+    set((state) => ({ messages: { ...state.messages, [agentId]: messages.slice(-200) } })),
   addMessage: (agentId, message) =>
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [agentId]: [...(state.messages[agentId] || []), message]
-      }
-    })),
+    set((state) => {
+      const existing = state.messages[agentId] || []
+      const updated = [...existing, message]
+      return { messages: { ...state.messages, [agentId]: updated.length > 200 ? updated.slice(-200) : updated } }
+    }),
 
   // Tasks
   tasks: [],

@@ -396,7 +396,15 @@ export function TerminalView({ agentId, onClose, compact }: TerminalViewProps): 
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const agent = agents.find((a) => a.id === agentId)
-  const agentMessages = messages[agentId] || []
+  const allMessages = messages[agentId] || []
+
+  // Virtual scrolling: only render last VISIBLE_LIMIT messages + load more on scroll
+  const VISIBLE_LIMIT = 100
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_LIMIT)
+  const agentMessages = useMemo(() => {
+    if (allMessages.length <= visibleCount) return allMessages
+    return allMessages.slice(-visibleCount)
+  }, [allMessages, visibleCount])
 
   // Fetch workspace info
   useEffect(() => {
@@ -540,9 +548,19 @@ export function TerminalView({ agentId, onClose, compact }: TerminalViewProps): 
             {t('chat.noMessages')}
           </div>
         ) : (
-          agentMessages.map((msg) => (
-            <TerminalLine key={msg.id} message={msg} />
-          ))
+          <>
+            {allMessages.length > visibleCount && (
+              <button
+                onClick={() => setVisibleCount(v => Math.min(v + VISIBLE_LIMIT, allMessages.length))}
+                className="w-full text-center text-[10px] text-muted-foreground/50 hover:text-muted-foreground py-1 font-mono"
+              >
+                {t('chat.loadMore', `Load ${Math.min(VISIBLE_LIMIT, allMessages.length - visibleCount)} more...`)}
+              </button>
+            )}
+            {agentMessages.map((msg) => (
+              <TerminalLine key={msg.id} message={msg} />
+            ))}
+          </>
         )}
       </div>
 

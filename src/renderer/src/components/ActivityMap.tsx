@@ -403,7 +403,9 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
   const { agents, usePtyMode, updateAgentInList, agentMemory } = useAppStore()
   const palette = useCyberPalette()
   const statusTheme = useMemo(() => getStatusTheme(palette), [palette])
-  const activeAgents = agents.filter((a) => a.status !== 'archived')
+
+  // Memoize active agents by serialized IDs+statuses to prevent unnecessary recalculations
+  const activeAgents = useMemo(() => agents.filter((a) => a.status !== 'archived'), [agents])
 
   // Workspace name resolution
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])

@@ -179,7 +179,8 @@ export class SshSessionManager {
   }
 
   private detectStatus(session: SshSession, rawData: string): void {
-    session.outputBuffer = (session.outputBuffer + rawData).slice(-500)
+    // Cap buffer at 2KB to prevent unbounded growth
+    session.outputBuffer = (session.outputBuffer + rawData).slice(-2000)
     const recentClean = stripAnsi(rawData)
     const bufferClean = stripAnsi(session.outputBuffer)
 
