@@ -4,8 +4,8 @@ import { getInitials } from '../lib/status'
 import { PtyTerminalView } from './PtyTerminalView'
 import { TerminalView } from './TerminalView'
 import { Composer } from './Composer'
-import { X, GripHorizontal, Maximize2, Pencil, Check, ChevronDown, ChevronUp, RotateCw, Square, Cpu, Clock } from 'lucide-react'
-import type { Agent, AgentStatus, Team, Workspace } from '@shared/types'
+import { X, GripHorizontal, Maximize2, Pencil, Check, ChevronDown, ChevronUp, RotateCw, Square, Cpu, Clock, Wrench, Zap } from 'lucide-react'
+import type { Agent, AgentStatus, Team, Workspace, AgentProfileData } from '@shared/types'
 
 interface ActivityMapProps {
   teams: Team[]
@@ -436,6 +436,13 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
   // Cockpit terminal collapse state
   const [terminalCollapsed, setTerminalCollapsed] = useState(false)
 
+  // Agent capability data for cockpit
+  const [cockpitProfile, setCockpitProfile] = useState<AgentProfileData | null>(null)
+  useEffect(() => {
+    if (!cockpitAgentId) { setCockpitProfile(null); return }
+    window.api.getAgentProfile(cockpitAgentId).then(setCockpitProfile).catch(() => setCockpitProfile(null))
+  }, [cockpitAgentId])
+
   // Agent rename state
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState('')
@@ -736,6 +743,44 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
                 </div>
               )}
             </div>
+
+            {/* Agent Capabilities */}
+            {cockpitProfile && (cockpitProfile.mcpServers.length > 0 || cockpitProfile.skills.length > 0) && (
+              <div className="shrink-0 border-b px-3 py-1.5" style={{ borderColor: palette.cockpitBorder }}>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {cockpitProfile.mcpServers.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Wrench size={9} style={{ color: palette.textMuted }} />
+                      <span className="font-mono text-[9px]" style={{ color: palette.textMuted }}>MCP</span>
+                      <span className="font-mono text-[9px] font-medium" style={{ color: palette.cyan }}>
+                        {cockpitProfile.mcpServers.filter(s => s.enabled).length}
+                      </span>
+                    </div>
+                  )}
+                  {cockpitProfile.skills.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Zap size={9} style={{ color: palette.textMuted }} />
+                      <span className="font-mono text-[9px]" style={{ color: palette.textMuted }}>SKILLS</span>
+                      <span className="font-mono text-[9px] font-medium" style={{ color: palette.green }}>
+                        {cockpitProfile.skills.length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {cockpitAgent && cockpitAgent.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-0.5 mt-1">
+                    {cockpitAgent.skills.slice(0, 6).map(skill => (
+                      <span key={skill} className="px-1 py-px rounded text-[8px] font-mono" style={{ backgroundColor: `${palette.cyan}15`, color: palette.cyan }}>
+                        {skill}
+                      </span>
+                    ))}
+                    {cockpitAgent.skills.length > 6 && (
+                      <span className="text-[8px] font-mono" style={{ color: palette.textMuted }}>+{cockpitAgent.skills.length - 6}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b" style={{ borderColor: palette.cockpitBorder }}>

@@ -9,7 +9,8 @@ import { PtySessionManager } from './pty-session-manager'
 import { Database } from './database'
 import { ChainOrchestrator } from './chain-orchestrator'
 import { scanWorkspaces, scanRemoteWorkspaces } from './workspace-scanner'
-import { readAgentProfile, readFileContent } from './claude-config-reader'
+import { readAgentProfile, readFileContent, readWorkspaceConfig, readGlobalSkills } from './claude-config-reader'
+import { ChainScheduler } from './scheduler'
 import { SshSessionManager } from './ssh-session-manager'
 import { initMainI18n, t } from './i18n'
 import { DiagnosticsEngine } from './diagnostics'
@@ -145,6 +146,7 @@ let ptySessionManager: PtySessionManager
 let sshSessionManager: SshSessionManager
 let database: Database
 let chainOrchestrator: ChainOrchestrator
+let chainScheduler: ChainScheduler
 let diagnostics: DiagnosticsEngine | null = null
 
 function createWindow(): void {
@@ -451,7 +453,9 @@ function setupIPC(): void {
     ) {
       throw new Error('Invalid chain parameters: name, triggerAgentId, targetAgentId, and messageTemplate are required')
     }
-    return database.createChain(chain as unknown as Omit<import('@shared/types').TaskChain, 'id' | 'createdAt'>)
+    const created = database.createChain(chain as unknown as Omit<import('@shared/types').TaskChain, 'id' | 'createdAt'>)
+    chainScheduler?.syncJobs()
+    return created
   })
 
   ipcMain.handle('chain:list', () => {
@@ -460,11 +464,14 @@ function setupIPC(): void {
 
   ipcMain.handle('chain:update', (_event, id: string, updates) => {
     if (typeof id !== 'string') throw new Error('Invalid chain ID')
-    return database.updateChain(id, updates)
+    const updated = database.updateChain(id, updates)
+    chainScheduler?.syncJobs()
+    return updated
   })
 
   ipcMain.handle('chain:delete', (_event, id: string) => {
     if (typeof id !== 'string') throw new Error('Invalid chain ID')
+    chainScheduler?.removeJob(id)
     return database.deleteChain(id)
   })
 
@@ -806,6 +813,25 @@ function setupIPC(): void {
     return readFileContent(filePath)
   })
 
+  // Workspace config (人材管理)
+  ipcMain.handle('workspace:config', (_event, workspacePath: string) => {
+    if (typeof workspacePath !== 'string') throw new Error('Invalid workspace path')
+    return readWorkspaceConfig(workspacePath)
+  })
+
+  ipcMain.handle('workspace:globalSkills', () => {
+    return readGlobalSkills()
+  })
+
+  // Chain execution logs (勤怠管理)
+  ipcMain.handle('chain:executionLogs', (_event, limit?: number) => {
+    return database.getChainExecutionLogs(limit)
+  })
+
+  ipcMain.handle('chain:scheduled', () => {
+    return database.getScheduledChains()
+  })
+
   // Settings
   ipcMain.handle('settings:get', () => {
     return database.getSettings()
@@ -1071,6 +1097,11 @@ app.whenReady().then(() => {
     }
   )
 
+  chainScheduler = new ChainScheduler(database, (chain) => {
+    chainOrchestrator.executeScheduledChain(chain)
+  })
+  chainScheduler.start()
+
   setupIPC()
   setupPtyIPC()
   setupDiagnosticsIPC()
@@ -1104,6 +1135,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   ;(app as any).isQuitting = true
   clearInterval(memoryMonitorTimer)
+  chainScheduler?.stop()
   sessionManager.stopAll()
   ptySessionManager.stopAll()
   sshSessionManager.stopAll()

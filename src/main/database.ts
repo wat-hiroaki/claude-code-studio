@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
-import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate, AgentDefinition } from '@shared/types'
+import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate, AgentDefinition, ChainExecutionLog } from '@shared/types'
 
 interface WindowBounds {
   x?: number
@@ -38,6 +38,7 @@ interface DBData {
   tasks: Task[]
   promptTemplates: PromptTemplate[]
   agentTemplates: AgentDefinition[]
+  chainExecutionLogs: ChainExecutionLog[]
   activeWorkspaceId: string | null
   settings: AppSettings
   nextMessageId: number
@@ -74,6 +75,7 @@ export class Database {
       tasks: [],
       promptTemplates: [],
       agentTemplates: [],
+      chainExecutionLogs: [],
       activeWorkspaceId: null,
       settings: {
         usePtyMode: true,
@@ -131,6 +133,9 @@ export class Database {
     if (!raw.sessionScrollbacks || typeof raw.sessionScrollbacks !== 'object') {
       raw.sessionScrollbacks = {}
     }
+
+    // Backfill chainExecutionLogs
+    if (!Array.isArray(raw.chainExecutionLogs)) raw.chainExecutionLogs = []
 
     // Backfill workspace path from agent projectPaths
     for (const ws of raw.workspaces as Record<string, unknown>[]) {
@@ -507,6 +512,37 @@ export class Database {
     this.data.settings = { ...this.getSettings(), ...updates }
     this.save()
     return this.data.settings
+  }
+
+  // --- Chain Execution Logs ---
+  private static readonly MAX_EXECUTION_LOGS = 500
+
+  addChainExecutionLog(log: ChainExecutionLog): ChainExecutionLog {
+    this.data.chainExecutionLogs.push(log)
+    // Auto-purge oldest beyond limit
+    if (this.data.chainExecutionLogs.length > Database.MAX_EXECUTION_LOGS) {
+      this.data.chainExecutionLogs = this.data.chainExecutionLogs.slice(-Database.MAX_EXECUTION_LOGS)
+    }
+    this.save()
+    return log
+  }
+
+  updateChainExecutionLog(id: string, updates: Partial<ChainExecutionLog>): void {
+    const log = this.data.chainExecutionLogs.find(l => l.id === id)
+    if (log) {
+      Object.assign(log, updates)
+      this.save()
+    }
+  }
+
+  getChainExecutionLogs(limit = 50): ChainExecutionLog[] {
+    return this.data.chainExecutionLogs
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .slice(0, limit)
+  }
+
+  getScheduledChains(): TaskChain[] {
+    return this.data.taskChains.filter(c => c.isActive && c.triggerCondition.type === 'scheduled')
   }
 
   close(): void {

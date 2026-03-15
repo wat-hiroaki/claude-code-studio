@@ -1,6 +1,7 @@
 import { existsSync } from 'fs'
+import { v4 as uuidv4 } from 'uuid'
 import type { Database } from './database'
-import type { AgentStatus, TaskChain, Agent } from '@shared/types'
+import type { AgentStatus, TaskChain, Agent, ChainExecutionLog } from '@shared/types'
 
 // Simple ANSI stripper
 function stripAnsi(str: string): string {
@@ -142,20 +143,35 @@ export class ChainOrchestrator {
         // Keyword matching is handled in handleAgentOutput
         return false
 
+      case 'scheduled':
+        // Scheduled chains are handled by the ChainScheduler, not status changes
+        return false
+
       default:
         return false
     }
   }
 
   /**
+   * Execute a chain from a scheduled trigger (no specific triggerAgentId).
+   */
+  executeScheduledChain(chain: TaskChain): void {
+    this.executeChain(chain, chain.triggerAgentId || chain.targetAgentId)
+  }
+
+  /**
    * Execute a chain: resolve template variables and send the message
-   * to the target agent.
+   * to the target agent. Records execution log in DB.
    */
   private executeChain(chain: TaskChain, triggerAgentId: string): void {
     const triggerAgent = this.database.getAgent(triggerAgentId)
     const targetAgent = this.database.getAgent(chain.targetAgentId)
 
+    const logId = uuidv4()
+    const startedAt = new Date().toISOString()
+
     if (!targetAgent) {
+      this.recordExecutionLog(logId, chain, triggerAgentId, startedAt, 'error', '', `Target agent ${chain.targetAgentId} not found`)
       this.handleChainError(chain, `Target agent ${chain.targetAgentId} not found`)
       return
     }
@@ -163,14 +179,18 @@ export class ChainOrchestrator {
     // Check if target agent's project path exists
     try {
       if (targetAgent.projectPath && !existsSync(targetAgent.projectPath)) {
-        this.handleChainError(chain, `Target path not found: ${targetAgent.projectPath}. The workspace folder may have been renamed or moved.`)
+        const errMsg = `Target path not found: ${targetAgent.projectPath}. The workspace folder may have been renamed or moved.`
+        this.recordExecutionLog(logId, chain, triggerAgentId, startedAt, 'error', '', errMsg)
+        this.handleChainError(chain, errMsg)
         return
       }
     } catch { /* fs check failed, continue anyway */ }
 
     // If the target agent is in error/archived state, respect onError
     if (targetAgent.status === 'archived') {
-      this.handleChainError(chain, `Target agent "${targetAgent.name}" is archived`)
+      const errMsg = `Target agent "${targetAgent.name}" is archived`
+      this.recordExecutionLog(logId, chain, triggerAgentId, startedAt, 'error', '', errMsg)
+      this.handleChainError(chain, errMsg)
       return
     }
 
@@ -181,14 +201,49 @@ export class ChainOrchestrator {
       project_path: targetAgent.projectPath
     })
 
+    // Record running log
+    this.recordExecutionLog(logId, chain, triggerAgentId, startedAt, 'running', message.slice(0, 200))
+
     this.emitChainEvent(chain, triggerAgentId, 'fired', message.slice(0, 100))
 
     this.sendToTarget(chain, message).then(() => {
+      this.completeExecutionLog(logId, startedAt, 'completed')
       this.emitChainEvent(chain, triggerAgentId, 'completed')
     }).catch((err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err)
+      this.completeExecutionLog(logId, startedAt, 'error', errorMessage)
       this.emitChainEvent(chain, triggerAgentId, 'error', errorMessage)
       this.handleChainError(chain, errorMessage)
+    })
+  }
+
+  private recordExecutionLog(
+    id: string, chain: TaskChain, triggerAgentId: string,
+    startedAt: string, status: ChainExecutionLog['status'],
+    message: string, errorMessage?: string
+  ): void {
+    const log: ChainExecutionLog = {
+      id,
+      chainId: chain.id,
+      chainName: chain.name,
+      triggerAgentId,
+      targetAgentId: chain.targetAgentId,
+      status,
+      message,
+      errorMessage,
+      startedAt,
+      completedAt: status !== 'running' ? new Date().toISOString() : undefined,
+      durationMs: status !== 'running' ? Date.now() - new Date(startedAt).getTime() : undefined
+    }
+    this.database.addChainExecutionLog(log)
+  }
+
+  private completeExecutionLog(id: string, startedAt: string, status: ChainExecutionLog['status'], errorMessage?: string): void {
+    this.database.updateChainExecutionLog(id, {
+      status,
+      errorMessage,
+      completedAt: new Date().toISOString(),
+      durationMs: Date.now() - new Date(startedAt).getTime()
     })
   }
 

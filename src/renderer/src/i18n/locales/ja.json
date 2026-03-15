@@ -81,6 +81,7 @@
     "kanban": "カンバン",
     "activityMap": "アクティビティマップ",
     "activityStream": "アクティビティストリーム",
+    "scheduler": "スケジューラ",
     "newTeam": "新規チーム",
     "teamName": "チーム名",
     "teamColor": "カラー",
@@ -136,13 +137,51 @@
     "conditions": {
       "complete": "完了時",
       "keyword": "キーワード検出時",
-      "no_error": "成功時（エラーなし）"
+      "no_error": "成功時（エラーなし）",
+      "scheduled": "定期実行"
     },
+    "interval": "実行間隔",
     "errorHandling": {
       "stop": "チェーン停止",
       "skip": "スキップして続行",
       "notify_only": "通知のみ"
     }
+  },
+  "workspaceConfig": {
+    "title": "ワークスペース設定",
+    "mcpServers": "MCPサーバー",
+    "skills": "スキル",
+    "commands": "コマンド",
+    "templates": "テンプレート",
+    "healthy": "正常",
+    "warning": "警告",
+    "noConfig": "設定が見つかりません"
+  },
+  "skillMap": {
+    "availableSkills": "利用可能なスキル",
+    "assignTo": "割り当て先"
+  },
+  "executionHistory": {
+    "title": "実行履歴",
+    "empty": "実行履歴はまだありません",
+    "running": "実行中",
+    "completed": "完了",
+    "error": "エラー",
+    "duration": "所要時間"
+  },
+  "scheduler": {
+    "title": "スケジュールタスク",
+    "activeSchedules": "アクティブなスケジュール",
+    "recentExecutions": "最近の実行",
+    "noSchedules": "スケジュールタスクはありません。定期実行トリガーでチェーンを作成してください。",
+    "interval": "実行間隔",
+    "every": "毎",
+    "minutes": "分",
+    "hours": "時間",
+    "daily": "毎日"
+  },
+  "teamMgmt2": {
+    "scheduler": "スケジューラ"
   },
   "contextPane": {
     "details": "詳細",
@@ -431,6 +470,25 @@
     "noSessionsHint": "`claude` CLIのセッションがここに表示されます",
     "currentProject": "このプロジェクト",
     "hint": "ヒント: 競合を避けるため、先に他のターミナルでセッションを終了してください"
+  },
+  "executionHistory": {
+    "title": "実行履歴",
+    "empty": "まだ実行履歴はありません",
+    "running": "実行中",
+    "completed": "完了",
+    "error": "エラー",
+    "duration": "所要時間"
+  },
+  "scheduler": {
+    "title": "スケジュールタスク",
+    "activeSchedules": "アクティブなスケジュール",
+    "recentExecutions": "最近の実行履歴",
+    "noSchedules": "スケジュールタスクはありません。スケジュールトリガー付きのチェーンを作成してください。",
+    "interval": "間隔",
+    "every": "毎",
+    "minutes": "分",
+    "hours": "時間",
+    "daily": "毎日"
   },
   "update": {
     "available": "v{{version}} のアップデートがあります。ダウンロード中...",

@@ -81,6 +81,7 @@
     "kanban": "Kanban",
     "activityMap": "Activity Map",
     "activityStream": "Activity Stream",
+    "scheduler": "Scheduler",
     "newTeam": "New Team",
     "teamName": "Team Name",
     "teamColor": "Color",
@@ -136,13 +137,51 @@
     "conditions": {
       "complete": "On Complete",
       "keyword": "On Keyword",
-      "no_error": "On Success (No Error)"
+      "no_error": "On Success (No Error)",
+      "scheduled": "Scheduled"
     },
+    "interval": "Interval",
     "errorHandling": {
       "stop": "Stop Chain",
       "skip": "Skip & Continue",
       "notify_only": "Notify Only"
     }
+  },
+  "workspaceConfig": {
+    "title": "Workspace Config",
+    "mcpServers": "MCP Servers",
+    "skills": "Skills",
+    "commands": "Commands",
+    "templates": "Templates",
+    "healthy": "Healthy",
+    "warning": "Warning",
+    "noConfig": "No configuration found"
+  },
+  "skillMap": {
+    "availableSkills": "Available Skills",
+    "assignTo": "Assign to"
+  },
+  "executionHistory": {
+    "title": "Execution History",
+    "empty": "No executions yet",
+    "running": "Running",
+    "completed": "Completed",
+    "error": "Error",
+    "duration": "Duration"
+  },
+  "scheduler": {
+    "title": "Scheduled Tasks",
+    "activeSchedules": "Active Schedules",
+    "recentExecutions": "Recent Executions",
+    "noSchedules": "No scheduled tasks. Create a chain with scheduled trigger.",
+    "interval": "Interval",
+    "every": "Every",
+    "minutes": "min",
+    "hours": "hr",
+    "daily": "daily"
+  },
+  "teamMgmt2": {
+    "scheduler": "Scheduler"
   },
   "contextPane": {
     "details": "Details",
@@ -431,6 +470,25 @@
     "noSessionsHint": "Sessions from `claude` CLI will appear here",
     "currentProject": "This project",
     "hint": "Tip: Close the session in the other terminal first to avoid conflicts"
+  },
+  "executionHistory": {
+    "title": "Execution History",
+    "empty": "No executions yet",
+    "running": "Running",
+    "completed": "Completed",
+    "error": "Error",
+    "duration": "Duration"
+  },
+  "scheduler": {
+    "title": "Scheduled Tasks",
+    "activeSchedules": "Active Schedules",
+    "recentExecutions": "Recent Executions",
+    "noSchedules": "No scheduled tasks. Create a chain with scheduled trigger.",
+    "interval": "Interval",
+    "every": "Every",
+    "minutes": "min",
+    "hours": "hr",
+    "daily": "daily"
   },
   "update": {
     "available": "Update v{{version}} is available. Downloading...",

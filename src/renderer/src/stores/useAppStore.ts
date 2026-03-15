@@ -38,7 +38,7 @@ interface AppState {
   showRightPane: boolean
   showBroadcast: boolean
   showDashboard: boolean
-  dashboardActiveView: 'orgChart' | 'skillMap' | 'kanban' | 'activityMap' | 'activityStream'
+  dashboardActiveView: 'orgChart' | 'skillMap' | 'kanban' | 'activityMap' | 'activityStream' | 'scheduler'
   toggleRightPane: () => void
   toggleBroadcast: () => void
   toggleDashboard: () => void

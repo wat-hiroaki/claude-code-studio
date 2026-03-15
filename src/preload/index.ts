@@ -134,6 +134,14 @@ const api: ElectronAPI = {
   getAgentProfile: (agentId) => ipcRenderer.invoke('agent:profile', agentId),
   readConfigFile: (filePath) => ipcRenderer.invoke('agent:readFile', filePath),
 
+  // Workspace config (人材管理)
+  getWorkspaceConfig: (workspacePath) => ipcRenderer.invoke('workspace:config', workspacePath),
+  getGlobalSkills: () => ipcRenderer.invoke('workspace:globalSkills'),
+
+  // Chain execution logs (勤怠管理)
+  getChainExecutionLogs: (limit) => ipcRenderer.invoke('chain:executionLogs', limit),
+  getScheduledChains: () => ipcRenderer.invoke('chain:scheduled'),
+
   // SSH
   testSshConnection: (config) => ipcRenderer.invoke('ssh:test', config),
 

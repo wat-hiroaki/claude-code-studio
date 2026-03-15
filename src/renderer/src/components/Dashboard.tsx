@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import {
   Users, AlertCircle, XCircle, CheckCircle2, FileText,
-  Network, BarChart3, Columns3, Plus, X, HardDrive, Brain, Radar
+  Network, BarChart3, Columns3, Plus, X, HardDrive, Brain, Radar, Calendar
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { ActivityLog } from './ActivityLog'
@@ -13,9 +13,10 @@ import { SkillMap } from './SkillMap'
 import { KanbanBoard } from './KanbanBoard'
 import { ActivityMap } from './ActivityMap'
 import { ActivityStream } from './ActivityStream'
+import { ScheduledTasksPanel } from './ScheduledTasksPanel'
 import type { Team } from '@shared/types'
 
-type DashboardView = 'orgChart' | 'skillMap' | 'kanban' | 'activityMap' | 'activityStream'
+type DashboardView = 'orgChart' | 'skillMap' | 'kanban' | 'activityMap' | 'activityStream' | 'scheduler'
 
 interface DashboardProps {
   onOpenScanner?: () => void
@@ -62,7 +63,8 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
     { key: 'skillMap', icon: BarChart3, label: t('teamMgmt.skillMap') },
     { key: 'kanban', icon: Columns3, label: t('teamMgmt.kanban') },
     { key: 'activityMap', icon: Radar, label: t('teamMgmt.activityMap') },
-    { key: 'activityStream', icon: Brain, label: t('teamMgmt.activityStream', 'Activity Stream') }
+    { key: 'activityStream', icon: Brain, label: t('teamMgmt.activityStream', 'Activity Stream') },
+    { key: 'scheduler', icon: Calendar, label: t('teamMgmt.scheduler', 'Scheduler') }
   ]
 
   const teamColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4']
@@ -218,6 +220,7 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
         {dashboardActiveView === 'kanban' && <KanbanBoard />}
         {dashboardActiveView === 'activityMap' && <ActivityMap teams={teams} onAgentClick={handleAgentClick} />}
         {dashboardActiveView === 'activityStream' && <ActivityStream className="h-[300px] relative" />}
+        {dashboardActiveView === 'scheduler' && <ScheduledTasksPanel />}
       </div>
 
       {/* Activity Log */}

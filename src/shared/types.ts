@@ -69,14 +69,32 @@ export interface TaskChain {
   name: string
   triggerAgentId: string
   triggerCondition: {
-    type: 'complete' | 'keyword' | 'no_error'
+    type: 'complete' | 'keyword' | 'no_error' | 'scheduled'
     keyword?: string
+    cronExpression?: string
+    intervalMinutes?: number
   }
   targetAgentId: string
   messageTemplate: string
   onError: 'stop' | 'skip' | 'notify_only'
   isActive: boolean
   createdAt: string
+}
+
+export type ChainExecutionStatus = 'running' | 'completed' | 'error'
+
+export interface ChainExecutionLog {
+  id: string
+  chainId: string
+  chainName: string
+  triggerAgentId: string
+  targetAgentId: string
+  status: ChainExecutionStatus
+  message: string
+  errorMessage?: string
+  startedAt: string
+  completedAt?: string
+  durationMs?: number
 }
 
 export interface PromptTemplate {
@@ -233,6 +251,17 @@ export interface AgentProfileData {
   hooks: ClaudeHook[]
 }
 
+export type WorkspaceHealthStatus = 'healthy' | 'warning' | 'error'
+
+export interface WorkspaceConfigData {
+  mcpServers: ClaudeMcpServer[]
+  skills: ClaudeSkillEntry[]
+  commands: ClaudeSkillEntry[]
+  templates: ClaudeSkillEntry[]
+  healthStatus: WorkspaceHealthStatus
+  healthIssues: string[]
+}
+
 export interface CliSessionInfo {
   sessionId: string
   projectPath: string
@@ -387,6 +416,14 @@ export interface ElectronAPI {
   onUpdateProgress: (callback: (percent: number) => void) => () => void
   onUpdateDownloaded: (callback: (version: string) => void) => () => void
   installUpdate: () => Promise<void>
+  // Workspace config (人材管理)
+  getWorkspaceConfig: (workspacePath: string) => Promise<WorkspaceConfigData>
+  getGlobalSkills: () => Promise<ClaudeSkillEntry[]>
+
+  // Chain execution logs (勤怠管理)
+  getChainExecutionLogs: (limit?: number) => Promise<ChainExecutionLog[]>
+  getScheduledChains: () => Promise<TaskChain[]>
+
   // Diagnostics
   getDiagnosticLogs: (limit?: number, level?: string, category?: string) => Promise<DiagnosticLog[]>
   getDiagnosticStats: () => Promise<DiagnosticStats>

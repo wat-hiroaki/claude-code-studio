@@ -10,11 +10,13 @@ import {
   ToggleRight,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Clock
 } from 'lucide-react'
+import { ChainExecutionHistory } from './ChainExecutionHistory'
 import type { TaskChain } from '@shared/types'
 
-type TriggerConditionType = 'complete' | 'keyword' | 'no_error'
+type TriggerConditionType = 'complete' | 'keyword' | 'no_error' | 'scheduled'
 type OnErrorType = 'stop' | 'skip' | 'notify_only'
 
 interface ChainFormState {
@@ -22,6 +24,7 @@ interface ChainFormState {
   triggerAgentId: string
   conditionType: TriggerConditionType
   keyword: string
+  intervalMinutes: number
   targetAgentId: string
   messageTemplate: string
   onError: OnErrorType
@@ -32,10 +35,19 @@ const initialForm: ChainFormState = {
   triggerAgentId: '',
   conditionType: 'complete',
   keyword: '',
+  intervalMinutes: 60,
   targetAgentId: '',
   messageTemplate: '',
   onError: 'stop'
 }
+
+const INTERVAL_OPTIONS = [
+  { value: 5, label: '5 min' },
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 hour' },
+  { value: 1440, label: 'Daily' }
+]
 
 export function TaskChainPanel(): JSX.Element {
   const { t } = useTranslation()
@@ -56,17 +68,19 @@ export function TaskChainPanel(): JSX.Element {
   }, [loadChains])
 
   const handleCreate = async (): Promise<void> => {
-    if (!form.name.trim() || !form.triggerAgentId || !form.targetAgentId || !form.messageTemplate.trim()) {
-      return
-    }
+    const isScheduled = form.conditionType === 'scheduled'
+    if (!form.name.trim() || !form.targetAgentId || !form.messageTemplate.trim()) return
+    if (!isScheduled && !form.triggerAgentId) return
+
     setLoading(true)
     try {
       const newChain = await window.api.createChain({
         name: form.name.trim(),
-        triggerAgentId: form.triggerAgentId,
+        triggerAgentId: isScheduled ? form.targetAgentId : form.triggerAgentId,
         triggerCondition: {
           type: form.conditionType,
-          ...(form.conditionType === 'keyword' ? { keyword: form.keyword } : {})
+          ...(form.conditionType === 'keyword' ? { keyword: form.keyword } : {}),
+          ...(isScheduled ? { intervalMinutes: form.intervalMinutes } : {})
         },
         targetAgentId: form.targetAgentId,
         messageTemplate: form.messageTemplate.trim(),
@@ -128,22 +142,24 @@ export function TaskChainPanel(): JSX.Element {
             />
           </div>
 
-          {/* Trigger Agent */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">{t('chain.trigger')}</label>
-            <select
-              value={form.triggerAgentId}
-              onChange={(e) => setForm({ ...form, triggerAgentId: e.target.value })}
-              className="w-full mt-1 px-3 py-1.5 bg-secondary rounded-md text-sm outline-none"
-            >
-              <option value="">{t('chain.selectAgent')}</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} {a.roleLabel ? `(${a.roleLabel})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Trigger Agent (hidden for scheduled) */}
+          {form.conditionType !== 'scheduled' && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{t('chain.trigger')}</label>
+              <select
+                value={form.triggerAgentId}
+                onChange={(e) => setForm({ ...form, triggerAgentId: e.target.value })}
+                className="w-full mt-1 px-3 py-1.5 bg-secondary rounded-md text-sm outline-none"
+              >
+                <option value="">{t('chain.selectAgent')}</option>
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} {a.roleLabel ? `(${a.roleLabel})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Condition */}
           <div>
@@ -156,6 +172,7 @@ export function TaskChainPanel(): JSX.Element {
               <option value="complete">{t('chain.conditions.complete')}</option>
               <option value="keyword">{t('chain.conditions.keyword')}</option>
               <option value="no_error">{t('chain.conditions.no_error')}</option>
+              <option value="scheduled">{t('chain.conditions.scheduled', 'Scheduled')}</option>
             </select>
           </div>
 
@@ -170,6 +187,22 @@ export function TaskChainPanel(): JSX.Element {
                 placeholder="e.g., DONE"
                 className="w-full mt-1 px-3 py-1.5 bg-secondary rounded-md text-sm outline-none"
               />
+            </div>
+          )}
+
+          {/* Interval selector (scheduled only) */}
+          {form.conditionType === 'scheduled' && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{t('chain.interval', 'Interval')}</label>
+              <select
+                value={form.intervalMinutes}
+                onChange={(e) => setForm({ ...form, intervalMinutes: Number(e.target.value) })}
+                className="w-full mt-1 px-3 py-1.5 bg-secondary rounded-md text-sm outline-none"
+              >
+                {INTERVAL_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -221,7 +254,7 @@ export function TaskChainPanel(): JSX.Element {
             onClick={handleCreate}
             disabled={
               !form.name.trim() ||
-              !form.triggerAgentId ||
+              (form.conditionType !== 'scheduled' && !form.triggerAgentId) ||
               !form.targetAgentId ||
               !form.messageTemplate.trim() ||
               loading
@@ -263,7 +296,10 @@ export function TaskChainPanel(): JSX.Element {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{chain.name}</div>
                   <div className="text-[10px] text-muted-foreground truncate">
-                    {getAgentName(chain.triggerAgentId)} → {getAgentName(chain.targetAgentId)}
+                    {chain.triggerCondition.type === 'scheduled'
+                      ? `⏰ ${INTERVAL_OPTIONS.find(o => o.value === chain.triggerCondition.intervalMinutes)?.label ?? `${chain.triggerCondition.intervalMinutes}m`} → ${getAgentName(chain.targetAgentId)}`
+                      : `${getAgentName(chain.triggerAgentId)} → ${getAgentName(chain.targetAgentId)}`
+                    }
                   </div>
                 </div>
 
@@ -309,6 +345,14 @@ export function TaskChainPanel(): JSX.Element {
                     <span className="text-muted-foreground">{t('chain.onError')}:</span>
                     <span>{t(`chain.errorHandling.${chain.onError}`)}</span>
                   </div>
+                  {chain.triggerCondition.type === 'scheduled' && chain.triggerCondition.intervalMinutes && (
+                    <div className="flex items-center gap-2">
+                      <Clock size={10} className="text-muted-foreground" />
+                      <span className="text-muted-foreground">{t('chain.interval', 'Interval')}:</span>
+                      <span>{INTERVAL_OPTIONS.find(o => o.value === chain.triggerCondition.intervalMinutes)?.label ?? `${chain.triggerCondition.intervalMinutes}m`}</span>
+                    </div>
+                  )}
+                  <ChainExecutionHistory chainId={chain.id} limit={5} />
                 </div>
               )}
             </div>

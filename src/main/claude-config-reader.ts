@@ -244,6 +244,149 @@ export function readAgentProfile(projectPath: string): AgentProfileData {
   return { rules, memory, skills, mcpServers, hooks }
 }
 
+export interface WorkspaceConfigData {
+  mcpServers: ClaudeMcpServer[]
+  skills: ClaudeSkillEntry[]
+  commands: ClaudeSkillEntry[]
+  templates: ClaudeSkillEntry[]
+  healthStatus: 'healthy' | 'warning' | 'error'
+  healthIssues: string[]
+}
+
+export function readWorkspaceConfig(projectPath: string): WorkspaceConfigData {
+  const home = homedir()
+  const claudeDir = join(home, '.claude')
+  const healthIssues: string[] = []
+
+  // --- MCP Servers ---
+  const mcpServers: ClaudeMcpServer[] = []
+  const settingsPath = join(claudeDir, 'settings.json')
+  if (existsSync(settingsPath)) {
+    try {
+      const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'))
+      const servers = settings.mcpServers ?? {}
+      for (const [name, config] of Object.entries(servers)) {
+        const cfg = config as Record<string, unknown>
+        const command = String(cfg.command ?? '')
+        const enabled = cfg.disabled !== true
+        mcpServers.push({
+          name,
+          command,
+          args: Array.isArray(cfg.args) ? cfg.args.map(String) : [],
+          enabled
+        })
+        // Health check: command exists?
+        if (enabled && command && !command.includes('/') && !command.includes('\\')) {
+          // Simple command names like 'npx', 'node' — skip existence check
+        }
+      }
+    } catch {
+      healthIssues.push('settings.json is corrupted or unreadable')
+    }
+  }
+
+  // Project-level MCP (.mcp.json)
+  const projectMcpPath = join(projectPath, '.mcp.json')
+  if (existsSync(projectMcpPath)) {
+    try {
+      const raw = JSON.parse(readFileSync(projectMcpPath, 'utf-8'))
+      const servers = raw.mcpServers ?? {}
+      for (const [name, config] of Object.entries(servers)) {
+        const cfg = config as Record<string, unknown>
+        mcpServers.push({
+          name: `[project] ${name}`,
+          command: String(cfg.command ?? ''),
+          args: Array.isArray(cfg.args) ? cfg.args.map(String) : [],
+          enabled: cfg.disabled !== true
+        })
+      }
+    } catch {
+      healthIssues.push('.mcp.json is corrupted')
+    }
+  }
+
+  // --- Skills, Commands, Templates ---
+  const skills: ClaudeSkillEntry[] = []
+  const commands: ClaudeSkillEntry[] = []
+  const templates: ClaudeSkillEntry[] = []
+
+  const skillsDir = join(claudeDir, 'skills')
+  if (existsSync(skillsDir)) {
+    try {
+      const entries = readdirSync(skillsDir)
+      for (const entry of entries) {
+        const entryPath = join(skillsDir, entry)
+        if (statSync(entryPath).isFile() && entry.endsWith('.md')) {
+          skills.push({ name: entry.replace('.md', ''), path: entryPath, type: 'skill' })
+        } else if (statSync(entryPath).isDirectory()) {
+          skills.push({ name: entry, path: entryPath, type: 'skill' })
+        }
+      }
+    } catch { /* */ }
+  }
+
+  const commandsDir = join(claudeDir, 'commands')
+  if (existsSync(commandsDir)) {
+    try {
+      const entries = readdirSync(commandsDir).filter((f) => f.endsWith('.md'))
+      for (const entry of entries) {
+        commands.push({
+          name: `/${entry.replace('.md', '')}`,
+          path: join(commandsDir, entry),
+          type: 'command'
+        })
+      }
+    } catch { /* */ }
+  }
+
+  const templatesDir = join(claudeDir, 'templates')
+  if (existsSync(templatesDir)) {
+    try {
+      const entries = readdirSync(templatesDir)
+      for (const entry of entries) {
+        templates.push({
+          name: entry,
+          path: join(templatesDir, entry),
+          type: 'template'
+        })
+      }
+    } catch { /* */ }
+  }
+
+  // Check for CLAUDE.md
+  if (!existsSync(join(projectPath, 'CLAUDE.md')) && !existsSync(join(projectPath, '.claude', 'CLAUDE.md'))) {
+    healthIssues.push('No CLAUDE.md found in project')
+  }
+
+  const healthStatus = healthIssues.some(i => i.includes('corrupted') || i.includes('error'))
+    ? 'error' as const
+    : healthIssues.length > 0 ? 'warning' as const : 'healthy' as const
+
+  return { mcpServers, skills, commands, templates, healthStatus, healthIssues }
+}
+
+export function readGlobalSkills(): ClaudeSkillEntry[] {
+  const claudeDir = join(homedir(), '.claude')
+  const skills: ClaudeSkillEntry[] = []
+
+  const skillsDir = join(claudeDir, 'skills')
+  if (existsSync(skillsDir)) {
+    try {
+      const entries = readdirSync(skillsDir)
+      for (const entry of entries) {
+        const entryPath = join(skillsDir, entry)
+        if (statSync(entryPath).isFile() && entry.endsWith('.md')) {
+          skills.push({ name: entry.replace('.md', ''), path: entryPath, type: 'skill' })
+        } else if (statSync(entryPath).isDirectory()) {
+          skills.push({ name: entry, path: entryPath, type: 'skill' })
+        }
+      }
+    } catch { /* */ }
+  }
+
+  return skills
+}
+
 export function readFileContent(filePath: string): string {
   try {
     return readFileSync(filePath, 'utf-8')
