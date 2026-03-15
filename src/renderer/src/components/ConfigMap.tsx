@@ -329,7 +329,7 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
 
     setScale(fitScale)
     setPan({ x: targetPanX, y: targetPanY })
-  }, [data])
+  }, [data, nodePositions])
 
   // Compute positions with grouping
   const nodePositions = useMemo(() => {
