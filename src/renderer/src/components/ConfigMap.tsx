@@ -186,16 +186,40 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
   const palette = resolved === 'dark' ? cyberPaletteDark : cyberPaletteLight
 
   const { activeWorkspaceId, agents, selectedAgentId } = useAppStore()
-  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
 
-  // Resolve project path: workspace path > selected agent's project > first agent's project
-  const resolvedPath = useMemo(() => {
-    if (activeWorkspace) return activeWorkspace.path
+  // Build list of all available paths (workspaces + unique agent project paths)
+  const availablePaths = useMemo(() => {
+    const paths = new Map<string, string>() // path → display name
+    for (const ws of workspaces) {
+      const name = ws.path.split('/').pop() || ws.path.split('\\').pop() || ws.path
+      paths.set(ws.path, name)
+    }
+    for (const agent of agents) {
+      if (agent.projectPath && !paths.has(agent.projectPath)) {
+        const name = agent.projectPath.split('/').pop() || agent.projectPath.split('\\').pop() || agent.projectPath
+        paths.set(agent.projectPath, name)
+      }
+    }
+    return paths
+  }, [workspaces, agents])
+
+  // Default: active workspace > selected agent > first agent
+  const defaultPath = useMemo(() => {
+    const activeWs = workspaces.find(w => w.id === activeWorkspaceId)
+    if (activeWs) return activeWs.path
     const selected = agents.find(a => a.id === selectedAgentId)
     if (selected?.projectPath) return selected.projectPath
     const firstActive = agents.find(a => a.status !== 'archived' && a.projectPath)
     return firstActive?.projectPath || null
-  }, [activeWorkspace, agents, selectedAgentId])
+  }, [workspaces, activeWorkspaceId, agents, selectedAgentId])
+
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const resolvedPath = selectedPath ?? defaultPath
+
+  // Sync when default changes (e.g. workspace switch)
+  useEffect(() => {
+    setSelectedPath(null)
+  }, [defaultPath])
 
   const [data, setData] = useState<ConfigMapData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -394,6 +418,29 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
     <div className="flex w-full" style={{ height: `${mapHeight}px` }}>
       {/* Main SVG area */}
       <div className="flex-1 min-w-0 flex flex-col">
+        {/* Workspace selector */}
+        {availablePaths.size > 1 && (
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono border-b overflow-x-auto shrink-0"
+            style={{ borderColor: palette.panelBorder }}
+          >
+            {Array.from(availablePaths.entries()).map(([path, name]) => (
+              <button
+                key={path}
+                onClick={() => setSelectedPath(path)}
+                className="px-2 py-0.5 rounded transition-colors whitespace-nowrap"
+                style={{
+                  backgroundColor: resolvedPath === path ? palette.cyan + '20' : 'transparent',
+                  color: resolvedPath === path ? palette.cyan : palette.textMuted,
+                  border: `1px solid ${resolvedPath === path ? palette.cyan + '40' : palette.panelBorder}`
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Conflict summary bar */}
         {data && data.conflicts.length > 0 && (
           <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono border-b" style={{ borderColor: palette.panelBorder, backgroundColor: 'rgba(239,68,68,0.05)' }}>
