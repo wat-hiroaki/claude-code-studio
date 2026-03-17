@@ -359,6 +359,7 @@ export interface ElectronAPI {
 
   // Dialog
   selectFolder: () => Promise<string | null>
+  selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<string | null>
 
   // Config files (B-1 to B-4)
   getMcpConfig: (scope: 'global' | 'project', projectPath?: string) => Promise<McpConfig>

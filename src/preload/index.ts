@@ -63,6 +63,7 @@ const api: ElectronAPI = {
 
   // Dialog
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+  selectFile: (filters?: { name: string; extensions: string[] }[]) => ipcRenderer.invoke('dialog:selectFile', filters),
 
   // Config files (B-1 to B-4)
   getMcpConfig: (scope, projectPath) => ipcRenderer.invoke('config:getMcp', scope, projectPath),

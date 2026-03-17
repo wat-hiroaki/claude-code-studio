@@ -54,7 +54,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
   }, [sshHost, sshPort, sshUsername, sshKeyPath])
 
   const handleSelectKey = useCallback(async () => {
-    const path = await window.api.selectFolder()
+    const path = await window.api.selectFile([{ name: 'SSH Keys', extensions: ['*'] }])
     if (path) setSshKeyPath(path)
   }, [])
 

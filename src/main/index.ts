@@ -652,6 +652,16 @@ function setupIPC(): void {
     return result.filePaths[0]
   })
 
+  ipcMain.handle('dialog:selectFile', async (_event, filters?: { name: string; extensions: string[] }[]) => {
+    if (!mainWindow) throw new Error('No window available')
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: filters || [{ name: 'All Files', extensions: ['*'] }]
+    })
+    if (result.canceled) return null
+    return result.filePaths[0]
+  })
+
   // Config files (B-1 to B-4)
   ipcMain.handle('config:getMcp', async (_event, scope: string, projectPath?: string) => {
     const { existsSync, readFileSync } = await import('fs')
