@@ -74,21 +74,25 @@ interface SectorDef {
   group: string
 }
 
-// Logical grouping with wider spacing between groups
+// Logical grouping — top-down hierarchy layout:
+//   Top:    Core (Rules, Settings) — the "brain"
+//   Left:   Integrations (MCP, Hooks) — external connections
+//   Right:  Runtime (Memory, Agents) — state & actors
+//   Bottom: Extensions (Skills, Commands, Templates) — capabilities
 const CATEGORY_SECTORS: Record<string, SectorDef> = {
-  // Group: Config Core (top)
-  rules:      { angle: -100, baseRadius: 200, group: 'core' },
-  settings:   { angle: -70,  baseRadius: 200, group: 'core' },
-  // Group: Integrations (right)
-  mcpServers: { angle: -20,  baseRadius: 210, group: 'integrations' },
-  hooks:      { angle: 20,   baseRadius: 200, group: 'integrations' },
+  // Group: Core (top center)
+  rules:      { angle: -100, baseRadius: 180, group: 'core' },
+  settings:   { angle: -80,  baseRadius: 180, group: 'core' },
+  // Group: Integrations (left)
+  mcpServers: { angle: -160, baseRadius: 200, group: 'integrations' },
+  hooks:      { angle: 160,  baseRadius: 200, group: 'integrations' },
+  // Group: Runtime (right)
+  memory:     { angle: -20,  baseRadius: 200, group: 'runtime' },
+  agents:     { angle: 20,   baseRadius: 200, group: 'runtime' },
   // Group: Extensions (bottom)
   skills:     { angle: 70,   baseRadius: 210, group: 'extensions' },
-  commands:   { angle: 110,  baseRadius: 200, group: 'extensions' },
-  templates:  { angle: 145,  baseRadius: 200, group: 'extensions' },
-  // Group: State/Runtime (left)
-  memory:     { angle: 195,  baseRadius: 200, group: 'runtime' },
-  agents:     { angle: 235,  baseRadius: 210, group: 'runtime' }
+  commands:   { angle: 90,   baseRadius: 210, group: 'extensions' },
+  templates:  { angle: 110,  baseRadius: 210, group: 'extensions' }
 }
 
 const LEVEL_ORDER: Record<string, number> = { global: 0, project: 1, agent: 2 }
@@ -152,18 +156,18 @@ function getGroupedNodePositions(
 }
 
 const EDGE_STYLES: Record<string, { stroke: string; dasharray: string; width: number }> = {
-  inherits:   { stroke: 'cyan',   dasharray: '',      width: 1.5 },
-  overrides:  { stroke: 'red',    dasharray: '4 3',   width: 1.5 },
-  references: { stroke: 'accent', dasharray: '2 4',   width: 1 },
-  configures: { stroke: 'gray',   dasharray: '3 2',   width: 1 }
+  inherits:   { stroke: 'cyan',   dasharray: '',      width: 2 },
+  overrides:  { stroke: 'red',    dasharray: '6 3',   width: 2 },
+  references: { stroke: 'accent', dasharray: '3 4',   width: 1.5 },
+  configures: { stroke: 'gray',   dasharray: '4 3',   width: 1.5 }
 }
 
 // Group background arcs
 const GROUP_DEFS: { group: string; label: string; color: string; startAngle: number; endAngle: number }[] = [
-  { group: 'core',         label: 'Core',         color: 'cyan',   startAngle: -120, endAngle: -50 },
-  { group: 'integrations', label: 'Integrations', color: 'green',  startAngle: -40,  endAngle: 40 },
-  { group: 'extensions',   label: 'Extensions',   color: 'orange', startAngle: 50,   endAngle: 165 },
-  { group: 'runtime',      label: 'Runtime',      color: 'purple', startAngle: 175,  endAngle: 255 }
+  { group: 'core',         label: 'Core',         color: 'cyan',   startAngle: -115, endAngle: -65 },
+  { group: 'integrations', label: 'Integrations', color: 'green',  startAngle: -180, endAngle: -130 },
+  { group: 'runtime',      label: 'Runtime',      color: 'purple', startAngle: -40,  endAngle: 40 },
+  { group: 'extensions',   label: 'Extensions',   color: 'orange', startAngle: 55,   endAngle: 125 }
 ]
 
 function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
@@ -588,13 +592,13 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
                 </feMerge>
               </filter>
               <marker id="arrow-inherits" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 3 L 0 6 z" fill={palette.cyan} opacity={0.6} />
+                <path d="M 0 0 L 10 3 L 0 6 z" fill={palette.cyan} opacity={0.9} />
               </marker>
               <marker id="arrow-overrides" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 3 L 0 6 z" fill={palette.red} opacity={0.6} />
+                <path d="M 0 0 L 10 3 L 0 6 z" fill={palette.red} opacity={0.9} />
               </marker>
               <marker id="arrow-configures" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 3 L 0 6 z" fill={palette.gray} opacity={0.6} />
+                <path d="M 0 0 L 10 3 L 0 6 z" fill={palette.gray} opacity={0.9} />
               </marker>
             </defs>
 
@@ -734,7 +738,7 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
                     strokeWidth={style.width}
                     strokeDasharray={style.dasharray}
                     markerEnd={markerId}
-                    opacity={0.5}
+                    opacity={0.8}
                   />
                 )
               })}

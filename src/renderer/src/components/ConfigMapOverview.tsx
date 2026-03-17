@@ -328,9 +328,9 @@ export function ConfigMapOverview({ workspaces, onDrillDown }: ConfigMapOverview
                 x2={pos.x - nx * (r + 2)}
                 y2={pos.y - ny * (r + 2)}
                 stroke={palette.cyan}
-                strokeWidth={0.8}
-                strokeDasharray="4 6"
-                opacity={0.2}
+                strokeWidth={1.5}
+                strokeDasharray="6 4"
+                opacity={0.5}
               />
             )
           })}
@@ -351,9 +351,9 @@ export function ConfigMapOverview({ workspaces, onDrillDown }: ConfigMapOverview
                   x2={posB.x}
                   y2={posB.y}
                   stroke={palette.green}
-                  strokeWidth={0.6}
-                  strokeDasharray="2 4"
-                  opacity={0.15}
+                  strokeWidth={1.2}
+                  strokeDasharray="4 4"
+                  opacity={0.4}
                 />
               )
             })
