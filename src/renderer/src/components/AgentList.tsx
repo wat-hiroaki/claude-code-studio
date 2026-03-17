@@ -484,11 +484,18 @@ export function AgentList(): JSX.Element {
                 {/* Project header */}
                 <div className="flex items-center gap-1 px-1.5 py-1 group">
                   <button
-                    onClick={() => toggleProject(group.projectName)}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation()
-                      setRenamingProject(group.projectName)
-                      setRenameValue(group.projectName)
+                    onClick={(e) => {
+                      // Skip toggle if already in rename mode
+                      if (renamingProject === group.projectName) return
+                      if (e.detail === 2) {
+                        // Double click — enter rename mode
+                        e.preventDefault()
+                        setRenamingProject(group.projectName)
+                        setRenameValue(group.projectName)
+                      } else {
+                        // Single click — toggle collapse
+                        toggleProject(group.projectName)
+                      }
                     }}
                     className="flex items-center gap-1 flex-1 min-w-0 rounded px-1 py-0.5 hover:bg-accent/50 transition-colors"
                   >
@@ -605,11 +612,38 @@ export function AgentList(): JSX.Element {
             className="fixed z-[100] bg-card border border-border rounded-lg shadow-xl py-1 min-w-[160px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            {/* Agent details header */}
-            <div className="px-3 py-2 border-b border-border/50 space-y-1">
+            {/* Agent details header — editable fields */}
+            <div className="px-3 py-2 border-b border-border/50 space-y-1.5">
               <div className="text-[10px] text-muted-foreground">
-                <span className="font-medium">{t('agent.projectPath', 'Path')}:</span>{' '}
-                <span className="font-mono break-all">{ctxAgent.projectPath || '—'}</span>
+                <span className="font-medium">{t('agent.project', 'Project')}:</span>
+                <input
+                  className="ml-1 bg-background border border-border/50 rounded px-1 py-0 text-[10px] font-mono w-full mt-0.5 outline-none focus:border-primary"
+                  defaultValue={ctxAgent.projectName}
+                  onBlur={async (e) => {
+                    const val = e.target.value.trim()
+                    if (val && val !== ctxAgent.projectName) {
+                      await window.api.updateAgent(ctxAgent.id, { projectName: val })
+                      useAppStore.getState().updateAgentInList(ctxAgent.id, { projectName: val })
+                    }
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                />
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                <span className="font-medium">{t('agent.projectPath', 'Path')}:</span>
+                <input
+                  className="ml-1 bg-background border border-border/50 rounded px-1 py-0 text-[10px] font-mono w-full mt-0.5 outline-none focus:border-primary"
+                  defaultValue={ctxAgent.projectPath || ''}
+                  placeholder="/home/user/project"
+                  onBlur={async (e) => {
+                    const val = e.target.value.trim()
+                    if (val !== (ctxAgent.projectPath || '')) {
+                      await window.api.updateAgent(ctxAgent.id, { projectPath: val || null })
+                      useAppStore.getState().updateAgentInList(ctxAgent.id, { projectPath: val || undefined })
+                    }
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                />
               </div>
               <div className="text-[10px] text-muted-foreground">
                 <span className="font-medium">{t('agent.workspace', 'Workspace')}:</span>{' '}
