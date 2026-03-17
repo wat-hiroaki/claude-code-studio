@@ -20,8 +20,7 @@ import {
   Pin,
   PinOff,
   Download,
-  ArrowUpDown,
-  Radar
+  ArrowUpDown
 } from 'lucide-react'
 import { Smile } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -61,6 +60,7 @@ export function AgentList(): JSX.Element {
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [createForProject, setCreateForProject] = useState<string | null>(null)
+  const [createForWorkspaceId, setCreateForWorkspaceId] = useState<string | null>(null)
   const [inboxExpanded, setInboxExpanded] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'updated'>('updated')
   const [appVersion, setAppVersion] = useState('')
@@ -74,7 +74,6 @@ export function AgentList(): JSX.Element {
   })
   const [contextMenu, setContextMenu] = useState<{ agentId: string; x: number; y: number } | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
-  const [workspaceColors, setWorkspaceColors] = useState<Record<string, string>>({})
   const [emojiPickerTarget, setEmojiPickerTarget] = useState<string | null>(null)
   const emojiAnchorRef = useRef<HTMLButtonElement>(null)
 
@@ -89,11 +88,6 @@ export function AgentList(): JSX.Element {
   useEffect(() => {
     window.api.getWorkspaces().then((wsList) => {
       setWorkspaces(wsList)
-      const colors: Record<string, string> = {}
-      for (const ws of wsList) {
-        colors[ws.id] = ws.color
-      }
-      setWorkspaceColors(colors)
     })
   }, [activeWorkspaceId])
 
@@ -325,8 +319,9 @@ export function AgentList(): JSX.Element {
     }
   }, [])
 
-  const handleCreateForProject = (projectName: string): void => {
+  const handleCreateForProject = (projectName: string, workspaceId?: string): void => {
     setCreateForProject(projectName)
+    setCreateForWorkspaceId(workspaceId ?? null)
     setShowCreate(true)
   }
 
@@ -379,22 +374,6 @@ export function AgentList(): JSX.Element {
       </div>
 
       <div className="flex-1 overflow-y-auto" role="list" aria-label={t('agent.listLabel', 'Agent list')}>
-        {/* ── Overview Section ── */}
-        <div className="border-b border-border">
-          <button
-            onClick={() => setSelectedAgent(null)}
-            className={cn(
-              'w-full flex items-center gap-2 px-3 py-2 text-left transition-colors',
-              selectedAgentId === null ? 'bg-indigo-500/10 text-indigo-400 font-medium' : 'hover:bg-accent/50 text-muted-foreground'
-            )}
-          >
-            <Radar size={14} className={selectedAgentId === null ? 'text-indigo-400' : 'text-muted-foreground'} />
-            <span className="text-[11px] font-semibold flex-1 tracking-wide uppercase">
-              {t('sidebar.overview', 'System Overview')}
-            </span>
-          </button>
-        </div>
-
         {/* ── Inbox Section ── */}
         {attentionAgents.length > 0 && !search && (
           <div className="border-b border-border">
@@ -421,13 +400,14 @@ export function AgentList(): JSX.Element {
                 {attentionAgents.map((agent) => {
                   const isError = agent.status === 'error'
                   return (
-                    <div
+                    <button
                       key={agent.id}
+                      onClick={() => setSelectedAgent(agent.id)}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5 mx-1 rounded-md',
+                        'w-full flex items-center gap-2 px-3 py-1.5 mx-1 rounded-md text-left cursor-pointer transition-colors',
                         isError
-                          ? 'bg-red-500/10 border border-red-500/20'
-                          : 'bg-yellow-500/10 border border-yellow-500/20'
+                          ? 'bg-red-500/10 border border-red-500/20 hover:bg-red-500/20'
+                          : 'bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20'
                       )}
                     >
                       <div
@@ -444,19 +424,11 @@ export function AgentList(): JSX.Element {
                           {t(`agent.status.${agent.status}`)}
                         </span>
                       </div>
-                      <button
-                        onClick={() => setSelectedAgent(agent.id)}
-                        className={cn(
-                          'shrink-0 p-1 rounded transition-colors',
-                          isError
-                            ? 'hover:bg-red-500/20 text-red-500'
-                            : 'hover:bg-yellow-500/20 text-orange-500'
-                        )}
-                        title={t('inbox.open')}
-                      >
-                        <ExternalLink size={12} />
-                      </button>
-                    </div>
+                      <ExternalLink size={12} className={cn(
+                        'shrink-0',
+                        isError ? 'text-red-500' : 'text-orange-500'
+                      )} />
+                    </button>
                   )
                 })}
               </div>
@@ -533,7 +505,7 @@ export function AgentList(): JSX.Element {
                           </span>
                         </button>
                         <button
-                          onClick={() => handleCreateForProject(group.projectName)}
+                          onClick={() => handleCreateForProject(group.projectName, group.agents[0]?.workspaceId)}
                           className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground transition-all"
                           title={t('agent.new')}
                         >
@@ -551,22 +523,10 @@ export function AgentList(): JSX.Element {
                         onClick={() => setSelectedAgent(agent.id)}
                         onContextMenu={(e) => handleContextMenu(e, agent.id)}
                         className={cn(
-                          'w-full flex items-center gap-2 pr-2.5 py-1.5 text-left transition-colors hover:bg-accent/50 relative',
-                          selectedAgentId === agent.id && 'bg-accent',
-                          // When workspace color bar is shown, reduce left padding
-                          !activeWorkspaceId && agent.workspaceId && workspaceColors[agent.workspaceId]
-                            ? 'pl-5'
-                            : 'pl-7'
+                          'w-full flex items-center gap-2 pl-7 pr-2.5 py-1.5 text-left transition-colors hover:bg-accent/50',
+                          selectedAgentId === agent.id && 'bg-accent'
                         )}
                       >
-                        {/* Workspace color vertical bar (only in "All Agents" view) */}
-                        {!activeWorkspaceId && agent.workspaceId && workspaceColors[agent.workspaceId] && (
-                          <div
-                            className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full"
-                            style={{ backgroundColor: workspaceColors[agent.workspaceId] }}
-                          />
-                        )}
-
                         {/* Avatar + status dot */}
                         <div className="relative flex-shrink-0">
                           <AgentAvatar agent={agent} size="md" />
@@ -791,6 +751,7 @@ export function AgentList(): JSX.Element {
           onClose={() => {
             setShowCreate(false)
             setCreateForProject(null)
+            setCreateForWorkspaceId(null)
           }}
           prefill={
             createForProject
@@ -809,6 +770,7 @@ export function AgentList(): JSX.Element {
                 }
               : undefined
           }
+          workspaceId={createForWorkspaceId ?? undefined}
         />
       )}
     </div>

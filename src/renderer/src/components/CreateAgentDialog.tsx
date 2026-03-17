@@ -8,9 +8,10 @@ import type { DiscoveredWorkspace, Workspace } from '@shared/types'
 interface CreateAgentDialogProps {
   onClose: () => void
   prefill?: DiscoveredWorkspace | null
+  workspaceId?: string
 }
 
-export function CreateAgentDialog({ onClose, prefill }: CreateAgentDialogProps): JSX.Element {
+export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdProp }: CreateAgentDialogProps): JSX.Element {
   const { t } = useTranslation()
   const { agents, addAgent, setSelectedAgent } = useAppStore()
   const [name, setName] = useState(prefill?.name || '')
@@ -28,7 +29,7 @@ export function CreateAgentDialog({ onClose, prefill }: CreateAgentDialogProps):
 
   // Load active workspace info and auto-fill path
   useEffect(() => {
-    const wsId = useAppStore.getState().activeWorkspaceId
+    const wsId = workspaceIdProp || useAppStore.getState().activeWorkspaceId
     if (!wsId) {
       setActiveWorkspace(null)
       return
@@ -53,7 +54,7 @@ export function CreateAgentDialog({ onClose, prefill }: CreateAgentDialogProps):
         }
       }
     })
-  }, [prefill])
+  }, [prefill, workspaceIdProp])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
