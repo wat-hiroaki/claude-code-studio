@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import {
   Users, AlertCircle, XCircle, CheckCircle2, FileText,
-  GitBranch, Plus, X, HardDrive, Brain, Radar, Calendar, Map as MapIcon
+  GitBranch, Plus, X, HardDrive, Brain, Radar, Map as MapIcon
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { DailyReport } from './DailyReport'
 import { ActivityMap } from './ActivityMap'
 import { ChainGraph } from './ChainGraph'
 import { ActivityStream } from './ActivityStream'
-import { ScheduledTasksPanel } from './ScheduledTasksPanel'
+// ScheduledTasksPanel merged into ChainGraph
 import type { Team, Workspace } from '@shared/types'
 
 const LazyConfigMap = lazy(() => import('./ConfigMap').then(m => ({ default: m.ConfigMap })))
@@ -66,8 +66,7 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
 
   const views: { key: DashboardView; icon: typeof Radar; label: string }[] = [
     { key: 'activityMap', icon: Radar, label: t('teamMgmt.activityMap') },
-    { key: 'chainGraph', icon: GitBranch, label: t('teamMgmt.chainGraph', 'Chain Graph') },
-    { key: 'scheduler', icon: Calendar, label: t('teamMgmt.scheduler', 'Scheduler') },
+    { key: 'chainGraph', icon: GitBranch, label: t('teamMgmt.chains', 'Chains') },
     { key: 'configMap', icon: MapIcon, label: t('teamMgmt.configMap', 'Config Map') }
   ]
 
@@ -234,11 +233,6 @@ export function Dashboard({ onOpenScanner, fullHeight }: DashboardProps): JSX.El
         {dashboardActiveView === 'chainGraph' && (
           <div className="h-full">
             <ChainGraph onAgentClick={handleAgentClick} />
-          </div>
-        )}
-        {dashboardActiveView === 'scheduler' && (
-          <div className="h-full">
-            <ScheduledTasksPanel />
           </div>
         )}
         {dashboardActiveView === 'configMap' && (

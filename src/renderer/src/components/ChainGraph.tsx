@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { cn } from '../lib/utils'
-import { GitBranch, Plus } from 'lucide-react'
+import { GitBranch, Plus, X } from 'lucide-react'
+import { TaskChainPanel } from './TaskChainPanel'
 import type { TaskChain, ChainExecutionLog } from '@shared/types'
 
 // ---------------------------------------------------------
@@ -330,6 +331,7 @@ export function ChainGraph({ onAgentClick }: ChainGraphProps) {
 
   const [chains, setChains] = useState<TaskChain[]>([])
   const [logs, setLogs] = useState<ChainExecutionLog[]>([])
+  const [showPanel, setShowPanel] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -414,7 +416,7 @@ export function ChainGraph({ onAgentClick }: ChainGraphProps) {
   }
 
   // Empty state
-  if (chains.length === 0) {
+  if (chains.length === 0 && !showPanel) {
     return (
       <div
         className={cn(
@@ -438,7 +440,7 @@ export function ChainGraph({ onAgentClick }: ChainGraphProps) {
             )}
           </span>
           <button
-            onClick={() => useAppStore.getState().setDashboardActiveView('scheduler')}
+            onClick={() => setShowPanel(true)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-colors"
             style={{
               backgroundColor: palette.cyan + '15',
@@ -465,18 +467,30 @@ export function ChainGraph({ onAgentClick }: ChainGraphProps) {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full flex gap-2">
+      <div className="flex-1 min-w-0">
       {/* Title */}
-      <div
-        className="flex items-center gap-2 mb-1 px-1"
-      >
+      <div className="flex items-center gap-2 mb-1 px-1">
         <GitBranch size={14} style={{ color: palette.accent }} />
         <span
           className="font-mono text-[11px] uppercase tracking-wider font-semibold"
           style={{ color: palette.textMuted }}
         >
-          {t('chainGraph.title', 'Chain Graph')}
+          {t('chainGraph.title', 'Chains')}
         </span>
+        <div className="flex-1" />
+        <button
+          onClick={() => setShowPanel(!showPanel)}
+          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors"
+          style={{
+            backgroundColor: showPanel ? palette.cyan + '15' : 'transparent',
+            color: showPanel ? palette.cyan : palette.textMuted,
+            border: `1px solid ${showPanel ? palette.cyan + '40' : palette.panelBorder}`
+          }}
+        >
+          <Plus size={12} />
+          {t('chainGraph.manage', 'Manage')}
+        </button>
       </div>
 
       <div
@@ -571,6 +585,22 @@ export function ChainGraph({ onAgentClick }: ChainGraphProps) {
           </text>
         </svg>
       </div>
+      </div>
+
+      {/* Side panel: Chain management */}
+      {showPanel && (
+        <div className="w-80 shrink-0 border border-border rounded-md overflow-hidden bg-card flex flex-col">
+          <div className="flex items-center justify-between p-2 border-b border-border shrink-0">
+            <span className="text-xs font-medium">{t('chainGraph.manage', 'Manage')}</span>
+            <button onClick={() => setShowPanel(false)} className="p-1 hover:bg-accent rounded transition-colors">
+              <X size={12} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto">
+            <TaskChainPanel onChainChanged={fetchData} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

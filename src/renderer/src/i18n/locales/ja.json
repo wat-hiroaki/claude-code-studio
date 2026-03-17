@@ -83,6 +83,7 @@
     "activityStream": "アクティビティストリーム",
     "scheduler": "スケジューラ",
     "chainGraph": "チェーングラフ",
+    "chains": "チェーン",
     "configMap": "設定マップ",
     "newTeam": "新規チーム",
     "teamName": "チーム名",
@@ -186,7 +187,8 @@
     "title": "チェーングラフ",
     "empty": "タスクチェーンが未設定です。チェーンを作成すると依存関係グラフが表示されます。",
     "noExecutions": "実行履歴なし",
-    "createChain": "チェーンを作成"
+    "createChain": "チェーンを作成",
+    "manage": "管理"
   },
   "contextPane": {
     "details": "詳細",

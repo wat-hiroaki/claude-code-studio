@@ -83,6 +83,7 @@
     "activityStream": "Activity Stream",
     "scheduler": "Scheduler",
     "chainGraph": "Chain Graph",
+    "chains": "Chains",
     "configMap": "Config Map",
     "newTeam": "New Team",
     "teamName": "Team Name",
@@ -186,7 +187,8 @@
     "title": "Chain Graph",
     "empty": "No task chains configured. Create chains to see the dependency graph.",
     "noExecutions": "No executions",
-    "createChain": "Create Chain"
+    "createChain": "Create Chain",
+    "manage": "Manage"
   },
   "contextPane": {
     "details": "Details",

@@ -49,7 +49,11 @@ const INTERVAL_OPTIONS = [
   { value: 1440, label: 'Daily' }
 ]
 
-export function TaskChainPanel(): JSX.Element {
+interface TaskChainPanelProps {
+  onChainChanged?: () => void
+}
+
+export function TaskChainPanel({ onChainChanged }: TaskChainPanelProps = {}): JSX.Element {
   const { t } = useTranslation()
   const { agents } = useAppStore()
   const [chains, setChains] = useState<TaskChain[]>([])
@@ -90,6 +94,7 @@ export function TaskChainPanel(): JSX.Element {
       setChains((prev) => [...prev, newChain])
       setForm(initialForm)
       setShowForm(false)
+      onChainChanged?.()
     } finally {
       setLoading(false)
     }
@@ -98,11 +103,13 @@ export function TaskChainPanel(): JSX.Element {
   const handleToggleActive = async (chain: TaskChain): Promise<void> => {
     const updated = await window.api.updateChain(chain.id, { isActive: !chain.isActive })
     setChains((prev) => prev.map((c) => (c.id === chain.id ? updated : c)))
+    onChainChanged?.()
   }
 
   const handleDelete = async (id: string): Promise<void> => {
     await window.api.deleteChain(id)
     setChains((prev) => prev.filter((c) => c.id !== id))
+    onChainChanged?.()
   }
 
   const getAgentName = (id: string): string => {
