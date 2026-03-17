@@ -177,6 +177,7 @@ export interface CreateAgentParams {
   skills?: string[]
   teamId?: string
   reportTo?: string
+  workspaceId?: string
 }
 
 export interface TeamStats {

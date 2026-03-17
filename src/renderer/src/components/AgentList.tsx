@@ -299,7 +299,8 @@ export function AgentList(): JSX.Element {
         roleLabel: agent.roleLabel ?? undefined,
         systemPrompt: agent.systemPrompt ?? undefined,
         skills: agent.skills.length > 0 ? agent.skills : undefined,
-        reportTo: agent.reportTo ?? undefined
+        reportTo: agent.reportTo ?? undefined,
+        workspaceId: agent.workspaceId ?? undefined
       })
       useAppStore.getState().addAgent(newAgent)
       setSelectedAgent(newAgent.id)

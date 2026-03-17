@@ -221,7 +221,7 @@ export class Database {
       name: params.name,
       icon: null,
       roleLabel: params.roleLabel ?? null,
-      workspaceId: this.data.activeWorkspaceId,
+      workspaceId: params.workspaceId ?? this.data.activeWorkspaceId,
       projectPath: params.projectPath,
       projectName: params.projectName,
       sessionNumber,

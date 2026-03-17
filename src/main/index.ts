@@ -318,6 +318,9 @@ function setupIPC(): void {
     if (usePtyMode) {
       // PTY mode: session will be started by PtyTerminalView via pty:start
       database.updateAgent(agent.id, { status: 'idle' })
+    } else if (isAgentSsh(agent.id)) {
+      // SSH agents in non-PTY mode: set idle, cannot start local session
+      database.updateAgent(agent.id, { status: 'idle' })
     } else {
       await sessionManager.startSession(agent)
     }

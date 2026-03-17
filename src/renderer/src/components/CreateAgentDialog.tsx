@@ -87,6 +87,7 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
     setError(null)
     try {
       const skills = skillsInput.split(',').map((s) => s.trim()).filter(Boolean)
+      const resolvedWsId = workspaceIdProp || useAppStore.getState().activeWorkspaceId || undefined
       const agent = await window.api.createAgent({
         name: name.trim(),
         projectPath: projectPath.trim(),
@@ -94,7 +95,8 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
         roleLabel: roleLabel.trim() || undefined,
         systemPrompt: systemPrompt.trim() || undefined,
         skills: skills.length > 0 ? skills : undefined,
-        reportTo: reportTo || undefined
+        reportTo: reportTo || undefined,
+        workspaceId: resolvedWsId
       })
       addAgent(agent)
       setSelectedAgent(agent.id)
