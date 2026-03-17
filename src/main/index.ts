@@ -785,9 +785,12 @@ function setupIPC(): void {
       }
       if (config.privateKeyPath) {
         try {
-          connectConfig.privateKey = readFileSync(String(config.privateKeyPath))
-        } catch {
-          resolve({ success: false, message: `Cannot read key: ${config.privateKeyPath}` })
+          // Normalize path separators for Windows compatibility
+          const keyPath = String(config.privateKeyPath).replace(/\\/g, '/')
+          connectConfig.privateKey = readFileSync(keyPath)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          resolve({ success: false, message: `Cannot read key: ${config.privateKeyPath} (${msg})` })
           return
         }
       }

@@ -199,9 +199,10 @@ export async function scanRemoteWorkspaces(
 
     if (sshConfig.privateKeyPath) {
       try {
-        connectConfig.privateKey = readFileSync(sshConfig.privateKeyPath)
-      } catch {
-        reject(new Error(`Cannot read SSH key: ${sshConfig.privateKeyPath}`))
+        connectConfig.privateKey = readFileSync(sshConfig.privateKeyPath.replace(/\\/g, '/'))
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        reject(new Error(`Cannot read SSH key: ${sshConfig.privateKeyPath} (${msg})`))
         return
       }
     }

@@ -58,9 +58,10 @@ export class SshSessionManager {
 
     if (privateKeyPath) {
       try {
-        connectConfig.privateKey = readFileSync(privateKeyPath)
-      } catch {
-        throw new Error(`Cannot read SSH key: ${privateKeyPath}`)
+        connectConfig.privateKey = readFileSync(privateKeyPath.replace(/\\/g, '/'))
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        throw new Error(`Cannot read SSH key: ${privateKeyPath} (${msg})`)
       }
     }
 
