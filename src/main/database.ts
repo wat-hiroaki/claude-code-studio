@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
-import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate, AgentDefinition, ChainExecutionLog } from '@shared/types'
+import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate, AgentDefinition, ChainExecutionLog, HookExecutionLog } from '@shared/types'
 
 interface WindowBounds {
   x?: number
@@ -39,6 +39,7 @@ interface DBData {
   promptTemplates: PromptTemplate[]
   agentTemplates: AgentDefinition[]
   chainExecutionLogs: ChainExecutionLog[]
+  hookExecutionLogs: HookExecutionLog[]
   activeWorkspaceId: string | null
   settings: AppSettings
   nextMessageId: number
@@ -76,6 +77,7 @@ export class Database {
       promptTemplates: [],
       agentTemplates: [],
       chainExecutionLogs: [],
+      hookExecutionLogs: [],
       activeWorkspaceId: null,
       settings: {
         usePtyMode: true,
@@ -136,6 +138,8 @@ export class Database {
 
     // Backfill chainExecutionLogs
     if (!Array.isArray(raw.chainExecutionLogs)) raw.chainExecutionLogs = []
+    // Backfill hookExecutionLogs
+    if (!Array.isArray(raw.hookExecutionLogs)) raw.hookExecutionLogs = []
 
     // Backfill workspace path from agent projectPaths
     for (const ws of raw.workspaces as Record<string, unknown>[]) {
@@ -538,6 +542,25 @@ export class Database {
   getChainExecutionLogs(limit = 50): ChainExecutionLog[] {
     return this.data.chainExecutionLogs
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .slice(0, limit)
+  }
+
+  // Hook execution logs
+  addHookExecutionLog(log: HookExecutionLog): void {
+    this.data.hookExecutionLogs.push(log)
+    if (this.data.hookExecutionLogs.length > Database.MAX_EXECUTION_LOGS) {
+      this.data.hookExecutionLogs = this.data.hookExecutionLogs.slice(-Database.MAX_EXECUTION_LOGS)
+    }
+    this.save()
+  }
+
+  getHookExecutionLogs(limit = 50, event?: string): HookExecutionLog[] {
+    let logs = this.data.hookExecutionLogs
+    if (event) {
+      logs = logs.filter(l => l.event === event)
+    }
+    return logs
+      .sort((a, b) => new Date(b.executedAt).getTime() - new Date(a.executedAt).getTime())
       .slice(0, limit)
   }
 

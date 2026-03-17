@@ -243,6 +243,19 @@ export interface ClaudeHook {
   command: string
 }
 
+export interface HookExecutionLog {
+  id: string
+  event: string
+  command: string
+  agentId?: string
+  projectPath?: string
+  status: 'success' | 'blocked' | 'error'
+  exitCode?: number
+  output?: string
+  executedAt: string
+  durationMs?: number
+}
+
 export interface AgentProfileData {
   rules: ClaudeRuleFile[]
   memory: ClaudeMemoryEntry[]

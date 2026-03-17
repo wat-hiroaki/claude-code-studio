@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, FileText, Zap, Terminal, Layout, Server, Shield, Brain, Bot, Settings } from 'lucide-react'
-import type { ConfigNode, ConfigConflict } from '@shared/types'
+import { X, FileText, Zap, Terminal, Layout, Server, Shield, Brain, Bot, Settings, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
+import type { ConfigNode, ConfigConflict, HookExecutionLog } from '@shared/types'
 
 interface ConfigMapDetailPanelProps {
   node: ConfigNode
@@ -21,10 +21,28 @@ const CATEGORY_ICONS: Record<string, typeof FileText> = {
   settings: Settings
 }
 
+const STATUS_CONFIG = {
+  success: { icon: CheckCircle2, color: 'text-green-500', label: 'OK' },
+  blocked: { icon: AlertTriangle, color: 'text-yellow-500', label: 'Blocked' },
+  error: { icon: XCircle, color: 'text-red-500', label: 'Error' }
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
 export function ConfigMapDetailPanel({ node, conflicts, onClose }: ConfigMapDetailPanelProps): JSX.Element {
   const { t } = useTranslation()
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [hookLogs, setHookLogs] = useState<HookExecutionLog[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -45,6 +63,21 @@ export function ConfigMapDetailPanel({ node, conflicts, onClose }: ConfigMapDeta
 
     return () => { cancelled = true }
   }, [node.filePath])
+
+  // Load hook execution logs when a hooks node is selected
+  useEffect(() => {
+    if (node.category !== 'hooks') {
+      setHookLogs([])
+      return
+    }
+    let cancelled = false
+    window.api.getHookExecutionLogs(30).then((logs) => {
+      if (!cancelled) setHookLogs(logs)
+    }).catch(() => {
+      if (!cancelled) setHookLogs([])
+    })
+    return () => { cancelled = true }
+  }, [node.category, node.id])
 
   const Icon = CATEGORY_ICONS[node.category] || FileText
   const nodeConflicts = conflicts.filter(c => c.nodeIds.includes(node.id))
@@ -128,6 +161,38 @@ export function ConfigMapDetailPanel({ node, conflicts, onClose }: ConfigMapDeta
               {c.description}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Hook execution history */}
+      {node.category === 'hooks' && (
+        <div className="p-3 border-b border-border shrink-0 max-h-48 overflow-auto">
+          <div className="text-xs font-medium mb-2">{t('configMap.hookHistory')}</div>
+          {hookLogs.length === 0 ? (
+            <div className="text-[10px] text-muted-foreground opacity-60">{t('configMap.noHookLogs')}</div>
+          ) : (
+            <div className="space-y-1">
+              {hookLogs.map(log => {
+                const cfg = STATUS_CONFIG[log.status]
+                const StatusIcon = cfg.icon
+                return (
+                  <div key={log.id} className="flex items-start gap-1.5 text-[10px] font-mono py-1 border-b border-border/30 last:border-0">
+                    <StatusIcon size={12} className={`${cfg.color} shrink-0 mt-0.5`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium truncate">{log.event}</span>
+                        <span className="text-muted-foreground shrink-0 ml-1">{formatTimeAgo(log.executedAt)}</span>
+                      </div>
+                      <div className="text-muted-foreground truncate">{log.command}</div>
+                      {log.output && (
+                        <div className="text-muted-foreground/60 truncate mt-0.5">{log.output.slice(0, 100)}</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

@@ -1286,6 +1286,11 @@ function setupDiagnosticsIPC(): void {
     return readConfigMapData(projectPath)
   })
 
+  // Hook execution logs
+  ipcMain.handle('hook:getLogs', (_event, limit?: number, event?: string) => {
+    return db.getHookExecutionLogs(limit ?? 50, event)
+  })
+
   // Agent Teams (Claude Code CLI integration)
   ipcMain.handle('agentTeams:get', () => {
     return readAgentTeamsData()

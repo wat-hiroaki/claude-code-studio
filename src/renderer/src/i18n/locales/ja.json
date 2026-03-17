@@ -276,7 +276,9 @@
     "zoomIn": "拡大",
     "zoomOut": "縮小",
     "zoomFit": "全体表示",
-    "zoomReset": "リセット"
+    "zoomReset": "リセット",
+    "hookHistory": "Hook実行履歴",
+    "noHookLogs": "まだHook実行の記録はありません"
   },
   "agentTeams": {
     "external": "外部CLI",

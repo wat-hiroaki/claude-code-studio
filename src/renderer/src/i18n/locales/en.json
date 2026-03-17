@@ -276,7 +276,9 @@
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out",
     "zoomFit": "Fit to View",
-    "zoomReset": "Reset View"
+    "zoomReset": "Reset View",
+    "hookHistory": "Hook Execution History",
+    "noHookLogs": "No hook executions recorded yet"
   },
   "agentTeams": {
     "external": "External CLI",
