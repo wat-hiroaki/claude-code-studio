@@ -130,10 +130,12 @@ export function ConfigMapOverview({ workspaces, onDrillDown }: ConfigMapOverview
 
   // Collect all project paths
   const projectPaths = useMemo(() => {
-    const homeDirs = new Set(['~', '~/', process.env.HOME, process.env.USERPROFILE, 'C:\\Users\\user', 'C:/Users/user'].filter(Boolean))
     const isHomePath = (p: string): boolean => {
       const normalized = p.replace(/[\\/]+$/, '')
-      return homeDirs.has(normalized) || normalized === '~' || /^[A-Z]:[\\/]Users[\\/][^\\/]+$/.test(normalized)
+      return normalized === '~' || normalized === '~/' ||
+        /^[A-Z]:[\\/]Users[\\/][^\\/]+$/.test(normalized) ||
+        /^\/home\/[^/]+$/.test(normalized) ||
+        /^\/Users\/[^/]+$/.test(normalized)
     }
     const paths = new Set<string>()
     for (const ws of workspaces) {

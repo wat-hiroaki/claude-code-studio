@@ -194,10 +194,12 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
   // Filter out home directory and root-like paths that aren't real projects
   const availablePaths = useMemo(() => {
     const paths = new Map<string, string>() // path → display name
-    const homeDirs = new Set(['~', '~/', process.env.HOME, process.env.USERPROFILE, 'C:\\Users\\user', 'C:/Users/user'].filter(Boolean))
     const isHomePath = (p: string): boolean => {
       const normalized = p.replace(/[\\/]+$/, '')
-      return homeDirs.has(normalized) || normalized === '~' || /^[A-Z]:[\\/]Users[\\/][^\\/]+$/.test(normalized)
+      return normalized === '~' || normalized === '~/' ||
+        /^[A-Z]:[\\/]Users[\\/][^\\/]+$/.test(normalized) ||
+        /^\/home\/[^/]+$/.test(normalized) ||
+        /^\/Users\/[^/]+$/.test(normalized)
     }
     for (const ws of workspaces) {
       if (isHomePath(ws.path)) continue
