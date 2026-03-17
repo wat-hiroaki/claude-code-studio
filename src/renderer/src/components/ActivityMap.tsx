@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { getInitials } from '../lib/status'
 import { PtyTerminalView } from './PtyTerminalView'
 import { TerminalView } from './TerminalView'
 import { Composer } from './Composer'
-import { X, GripHorizontal, Maximize2, Pencil, Check, ChevronDown, ChevronUp, RotateCw, Square, Cpu, Clock, Wrench, Zap } from 'lucide-react'
+import { X, GripHorizontal, Maximize2, Pencil, Check, ChevronDown, ChevronUp, RotateCw, Square, Cpu, Clock, Wrench, Zap, Plus, Minus, Maximize } from 'lucide-react'
 import type { Agent, AgentStatus, Team, Workspace, AgentProfileData, ClaudeTaskSession } from '@shared/types'
 
 interface ActivityMapProps {
@@ -103,30 +104,60 @@ function getRadialPosition(index: number, total: number, centerX: number, center
   }
 }
 
-function groupByTeam(agents: Agent[], teams: Team[]) {
-  const groups: { team: Team | null; agents: Agent[] }[] = teams.map((t) => ({ team: t, agents: agents.filter((a) => a.teamId === t.id) }))
-  const unassigned = agents.filter((a) => !a.teamId)
-  if (unassigned.length > 0) groups.push({ team: null, agents: unassigned })
-  return groups.filter((g) => g.agents.length > 0)
+// ---------------------------------------------------------
+// 2-LAYER GROUPING: Machine → Project → Agents
+// ---------------------------------------------------------
+interface ProjectGroup2 {
+  projectName: string
+  agents: Agent[]
 }
 
-/** Group agents by workspace first, then sort within each group by team */
-function groupByWorkspace(agents: Agent[], workspaceNames: Map<string, string>) {
-  const wsGroups = new Map<string, { wsId: string; wsName: string; agents: Agent[] }>()
+interface MachineGroup2 {
+  machineKey: string
+  machineName: string
+  isSSH: boolean
+  sshHost?: string
+  projects: ProjectGroup2[]
+}
 
-  for (const agent of agents) {
-    const wsId = agent.workspaceId || '__default__'
-    if (!wsGroups.has(wsId)) {
-      wsGroups.set(wsId, {
-        wsId,
-        wsName: workspaceNames.get(wsId) || 'Default',
-        agents: []
-      })
+function groupByMachineAndProject(agents: Agent[], workspaces: Workspace[], workspaceNameMap: Map<string, string>): MachineGroup2[] {
+  const getMachine = (agent: Agent): { key: string; name: string; isSSH: boolean; host?: string } => {
+    const ws = workspaces.find(w => w.id === agent.workspaceId)
+    if (ws?.connectionType === 'ssh' && ws.sshConfig) {
+      const host = ws.sshConfig.host || 'Remote'
+      return { key: `ssh:${host}`, name: ws.name || host, isSSH: true, host }
     }
-    wsGroups.get(wsId)!.agents.push(agent)
+    return { key: 'local', name: 'Local', isSSH: false }
   }
 
-  return [...wsGroups.values()].sort((a, b) => b.agents.length - a.agents.length)
+  const machineMap = new Map<string, { name: string; isSSH: boolean; host?: string; projectMap: Map<string, Agent[]> }>()
+  for (const agent of agents) {
+    const machine = getMachine(agent)
+    if (!machineMap.has(machine.key)) {
+      machineMap.set(machine.key, { name: machine.name, isSSH: machine.isSSH, host: machine.host, projectMap: new Map() })
+    }
+    const m = machineMap.get(machine.key)!
+    const projectName = workspaceNameMap.get(agent.workspaceId || '') || agent.projectName || 'Default'
+    const projectAgents = m.projectMap.get(projectName) ?? []
+    projectAgents.push(agent)
+    m.projectMap.set(projectName, projectAgents)
+  }
+
+  const result: MachineGroup2[] = []
+  for (const [machineKey, m] of machineMap) {
+    const projects: ProjectGroup2[] = []
+    for (const [projectName, projectAgents] of m.projectMap) {
+      projects.push({ projectName, agents: projectAgents })
+    }
+    projects.sort((a, b) => a.projectName.localeCompare(b.projectName))
+    result.push({ machineKey, machineName: m.name, isSSH: m.isSSH, sshHost: m.host, projects })
+  }
+  // Local first, then SSH
+  return result.sort((a, b) => {
+    if (!a.isSSH && b.isSSH) return -1
+    if (a.isSSH && !b.isSSH) return 1
+    return a.machineName.localeCompare(b.machineName)
+  })
 }
 
 // ---------------------------------------------------------
@@ -150,7 +181,6 @@ function AgentNode({ agent, x, y, onClick, palette, statusTheme, workspaceName, 
   const isDanger = agent.status === 'error'
 
   const coreRadius = 12
-  const crosshairOffset = 24
   const ringRadius = 18
 
   return (
@@ -160,18 +190,6 @@ function AgentNode({ agent, x, y, onClick, palette, statusTheme, workspaceName, 
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* ターゲットロックオンのクロスヘア */}
-      <path
-        d={`M ${x - crosshairOffset} ${y - crosshairOffset} L ${x - crosshairOffset + 8} ${y - crosshairOffset} M ${x - crosshairOffset} ${y - crosshairOffset} L ${x - crosshairOffset} ${y - crosshairOffset + 8}
-            M ${x + crosshairOffset} ${y - crosshairOffset} L ${x + crosshairOffset - 8} ${y - crosshairOffset} M ${x + crosshairOffset} ${y - crosshairOffset} L ${x + crosshairOffset} ${y - crosshairOffset + 8}
-            M ${x - crosshairOffset} ${y + crosshairOffset} L ${x - crosshairOffset + 8} ${y + crosshairOffset} M ${x - crosshairOffset} ${y + crosshairOffset} L ${x - crosshairOffset} ${y + crosshairOffset - 8}
-            M ${x + crosshairOffset} ${y + crosshairOffset} L ${x + crosshairOffset - 8} ${y + crosshairOffset} M ${x + crosshairOffset} ${y + crosshairOffset} L ${x + crosshairOffset} ${y + crosshairOffset - 8}`}
-        stroke={hovered ? palette.textMain : theme.color}
-        strokeWidth={1.2}
-        fill="none"
-        opacity={hovered ? 0.8 : 0.35}
-      />
-
       {/* 外側の回転リング (アクティブ時のみ) */}
       {isActive && (
         <circle cx={x} cy={y} r={ringRadius} fill="none" stroke={theme.color} strokeWidth={0.6} strokeDasharray="3 5" opacity={0.5}>
@@ -522,6 +540,7 @@ function ExternalCliNode({ session, x, y, palette }: ExternalCliNodeProps) {
 // MAIN EXPORT
 // ---------------------------------------------------------
 export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
+  const { t } = useTranslation()
   const { agents, usePtyMode, updateAgentInList, agentMemory, activeChainFlows, agentTeamsData } = useAppStore()
   const palette = useCyberPalette()
   const statusTheme = useMemo(() => getStatusTheme(palette), [palette])
@@ -631,87 +650,94 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
     e.currentTarget.releasePointerCapture(e.pointerId)
   }
 
-  const { positions, teamSectors, wsClusterLabels } = useMemo(() => {
+  // Zoom controls
+  const handleZoomIn = useCallback(() => setScale(s => Math.min(4, s + 0.2)), [])
+  const handleZoomOut = useCallback(() => setScale(s => Math.max(0.4, s - 0.2)), [])
+  const handleZoomFit = useCallback(() => {
+    setPan({ x: 0, y: 0 })
+    setScale(1)
+  }, [])
+
+  // 2-layer grouping: Machine → Project → Agents
+  const machineGroups = useMemo(
+    () => groupByMachineAndProject(activeAgents, workspaces, workspaceNameMap),
+    [activeAgents, workspaces, workspaceNameMap]
+  )
+
+  const { positions, teamSectors, machineLabels, projectLabels } = useMemo(() => {
     const pos = new Map<string, { x: number; y: number }>()
     const sectors: { team: Team | null; startAngle: number; endAngle: number }[] = []
-    const wsLabels: { wsName: string; x: number; y: number; color: string }[] = []
-    if (activeAgents.length === 0) return { positions: pos, teamSectors: sectors, wsClusterLabels: wsLabels }
+    const mLabels: { name: string; isSSH: boolean; x: number; y: number }[] = []
+    const pLabels: { name: string; x: number; y: number }[] = []
+    if (activeAgents.length === 0) return { positions: pos, teamSectors: sectors, machineLabels: mLabels, projectLabels: pLabels }
 
-    const wsGroups = groupByWorkspace(activeAgents, workspaceNameMap)
-    const hasMultipleWorkspaces = wsGroups.length > 1 || (wsGroups.length === 1 && wsGroups[0].agents.length > 1)
+    const totalAgents = activeAgents.length
+    const mainRadius = 200
+    const NODE_SPACING = 80
 
-    if (hasMultipleWorkspaces && wsGroups.some(g => g.agents.length > 1)) {
-      // Workspace-based clustering: each workspace gets a wider arc segment
-      // Each agent node occupies roughly 90px vertical space (name + status + workspace label)
-      const NODE_SPACING = 90
-      const totalAgents = activeAgents.length
-      const mainRadius = 200
+    // Count total agent slots across all machines for even arc distribution
+    let globalIndex = 0
 
-      let currentIndex = 0
-      for (const wsGroup of wsGroups) {
-        const agentCount = wsGroup.agents.length
-        const startAngle = (2 * Math.PI * currentIndex) / totalAgents - Math.PI / 2
+    for (const machine of machineGroups) {
+      const machineAgentCount = machine.projects.reduce((sum, p) => sum + p.agents.length, 0)
+      // Machine label at the midpoint of its arc
+      const machineMidIndex = globalIndex + (machineAgentCount - 1) / 2
+      const machineMidAngle = (2 * Math.PI * machineMidIndex) / totalAgents - Math.PI / 2
+      const machineLabelRadius = mainRadius + 90
+      mLabels.push({
+        name: machine.machineName,
+        isSSH: machine.isSSH,
+        x: centerX + machineLabelRadius * Math.cos(machineMidAngle),
+        y: centerY + machineLabelRadius * Math.sin(machineMidAngle)
+      })
+
+      for (const project of machine.projects) {
+        const agentCount = project.agents.length
+        const projectStartIndex = globalIndex
 
         if (agentCount === 1) {
-          const position = getRadialPosition(currentIndex, totalAgents, centerX, centerY, mainRadius)
-          pos.set(wsGroup.agents[0].id, position)
+          const position = getRadialPosition(globalIndex, totalAgents, centerX, centerY, mainRadius)
+          pos.set(project.agents[0].id, position)
         } else {
-          // Spread agents along the tangent direction (perpendicular to the radius)
-          const midIndex = currentIndex + (agentCount - 1) / 2
+          // Spread agents along tangent at this project's arc segment
+          const midIndex = globalIndex + (agentCount - 1) / 2
           const anchorAngle = (2 * Math.PI * midIndex) / totalAgents - Math.PI / 2
           const anchorX = centerX + mainRadius * Math.cos(anchorAngle)
           const anchorY = centerY + mainRadius * Math.sin(anchorAngle)
 
-          // Tangent direction (perpendicular to radius)
           const tangentX = -Math.sin(anchorAngle)
           const tangentY = Math.cos(anchorAngle)
 
           for (let i = 0; i < agentCount; i++) {
-            // Center the spread: offset from -half to +half
             const offset = (i - (agentCount - 1) / 2) * NODE_SPACING
-            const x = anchorX + tangentX * offset
-            const y = anchorY + tangentY * offset
-            pos.set(wsGroup.agents[i].id, { x, y })
+            pos.set(project.agents[i].id, {
+              x: anchorX + tangentX * offset,
+              y: anchorY + tangentY * offset
+            })
           }
-
-          // Workspace cluster label — placed outward from anchor
-          const labelRadius = mainRadius + 65
-          wsLabels.push({
-            wsName: wsGroup.wsName,
-            x: centerX + labelRadius * Math.cos(anchorAngle),
-            y: centerY + labelRadius * Math.sin(anchorAngle),
-            color: '#71717a'
-          })
         }
 
-        const endAngle = (2 * Math.PI * (currentIndex + agentCount)) / totalAgents - Math.PI / 2
-        const teamForGroup = teams.find(t =>
-          wsGroup.agents.some(a => a.teamId === t.id)
-        )
+        // Project label
+        const projMidIndex = globalIndex + (agentCount - 1) / 2
+        const projMidAngle = (2 * Math.PI * projMidIndex) / totalAgents - Math.PI / 2
+        const projLabelRadius = mainRadius + 55
+        pLabels.push({
+          name: project.projectName,
+          x: centerX + projLabelRadius * Math.cos(projMidAngle),
+          y: centerY + projLabelRadius * Math.sin(projMidAngle)
+        })
+
+        // Build sector for this project group
+        const startAngle = (2 * Math.PI * projectStartIndex) / totalAgents - Math.PI / 2
+        const endAngle = (2 * Math.PI * (projectStartIndex + agentCount)) / totalAgents - Math.PI / 2
+        const teamForGroup = teams.find(t => project.agents.some(a => a.teamId === t.id))
         sectors.push({ team: teamForGroup ?? null, startAngle, endAngle })
 
-        currentIndex += agentCount
-      }
-    } else {
-      // Fallback: original team-based grouping
-      const groups = groupByTeam(activeAgents, teams)
-      const totalAgents = activeAgents.length
-      const radius = 200
-
-      let currentIndex = 0
-      for (const group of groups) {
-        const startAngle = (2 * Math.PI * currentIndex) / totalAgents - Math.PI / 2
-        for (let i = 0; i < group.agents.length; i++) {
-          const position = getRadialPosition(currentIndex + i, totalAgents, centerX, centerY, radius)
-          pos.set(group.agents[i].id, position)
-        }
-        const endAngle = (2 * Math.PI * (currentIndex + group.agents.length)) / totalAgents - Math.PI / 2
-        sectors.push({ team: group.team, startAngle, endAngle })
-        currentIndex += group.agents.length
+        globalIndex += agentCount
       }
     }
-    return { positions: pos, teamSectors: sectors, wsClusterLabels: wsLabels }
-  }, [activeAgents, teams, centerX, centerY, workspaceNameMap])
+    return { positions: pos, teamSectors: sectors, machineLabels: mLabels, projectLabels: pLabels }
+  }, [activeAgents, teams, centerX, centerY, machineGroups])
 
   // External CLI sessions (unmatched to any agent) — split active vs stale
   const { activeExternalSessions, staleSessionCount } = useMemo(() => {
@@ -831,12 +857,22 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
                <CyberSectorLabel key={i} {...s} cx={centerX} cy={centerY} radius={230} palette={palette} />
             ))}
 
-            {/* Workspace cluster labels */}
-            {wsClusterLabels.map((ws, i) => (
-              <g key={`ws-${i}`}>
-                <rect x={ws.x - 38} y={ws.y - 7} width={76} height={14} fill={palette.bg} stroke={palette.accent} strokeWidth={0.4} rx={3} opacity={0.85} />
-                <text x={ws.x} y={ws.y + 3} textAnchor="middle" className="font-mono text-[7px] uppercase tracking-wider" fill={palette.accent} style={{ userSelect: 'none' }}>
-                  {ws.wsName.length > 12 ? ws.wsName.slice(0, 11) + '..' : ws.wsName}
+            {/* Machine labels (outer ring) */}
+            {machineLabels.map((ml, i) => (
+              <g key={`machine-${i}`}>
+                <rect x={ml.x - 44} y={ml.y - 8} width={88} height={16} fill={palette.bg} stroke={ml.isSSH ? palette.orange : palette.accent} strokeWidth={0.6} rx={3} opacity={0.9} />
+                <text x={ml.x} y={ml.y + 3} textAnchor="middle" className="font-mono text-[8px] uppercase tracking-wider font-semibold" fill={ml.isSSH ? palette.orange : palette.textMuted} style={{ userSelect: 'none' }}>
+                  {ml.isSSH ? '🖥 ' : '💻 '}{ml.name.length > 10 ? ml.name.slice(0, 9) + '..' : ml.name}
+                </text>
+              </g>
+            ))}
+
+            {/* Project labels (inner ring) */}
+            {projectLabels.map((pl, i) => (
+              <g key={`project-${i}`}>
+                <rect x={pl.x - 38} y={pl.y - 7} width={76} height={14} fill={palette.bg} stroke={palette.accent} strokeWidth={0.4} rx={3} opacity={0.85} />
+                <text x={pl.x} y={pl.y + 3} textAnchor="middle" className="font-mono text-[7px] uppercase tracking-wider" fill={palette.accent} style={{ userSelect: 'none' }}>
+                  {pl.name.length > 12 ? pl.name.slice(0, 11) + '..' : pl.name}
                 </text>
               </g>
             ))}
@@ -903,19 +939,49 @@ export function ActivityMap({ teams, onAgentClick }: ActivityMapProps) {
             })}
           </g>
           
-          {/* Static Corner Decorators */}
-          <g opacity={0.3}>
-            <path d="M 20 50 L 20 20 L 50 20" fill="none" stroke={palette.accent} strokeWidth={1} />
-            <path d={`M ${svgWidth - 20} 50 L ${svgWidth - 20} 20 L ${svgWidth - 50} 20`} fill="none" stroke={palette.accent} strokeWidth={1} />
-            <path d={`M 20 ${svgHeight - 50} L 20 ${svgHeight - 20} L 50 ${svgHeight - 20}`} fill="none" stroke={palette.accent} strokeWidth={1} />
-            <path d={`M ${svgWidth - 20} ${svgHeight - 50} L ${svgWidth - 20} ${svgHeight - 20} L ${svgWidth - 50} ${svgHeight - 20}`} fill="none" stroke={palette.accent} strokeWidth={1} />
-          </g>
-
           {/* Footer info fixed to canvas bottom */}
           <text x={centerX} y={svgHeight - 15} textAnchor="middle" className="font-mono text-[7px] uppercase tracking-[0.4em]" fill={palette.accent} opacity={0.5} style={{ userSelect: 'none' }}>
             CLAUDE-AGENTDECK :: TACTICAL OVERVIEW
           </text>
         </svg>
+
+        {/* Zoom controls */}
+        <div
+          className="absolute bottom-2 right-2 flex flex-col gap-1 pointer-events-auto"
+          style={{ zIndex: 20 }}
+        >
+          <button
+            onClick={handleZoomIn}
+            className="p-1.5 rounded transition-colors hover:opacity-80"
+            style={{ backgroundColor: palette.panelBg, border: `1px solid ${palette.panelBorder}`, color: palette.textMuted }}
+            title={t('activityMap.zoomIn')}
+          >
+            <Plus size={14} />
+          </button>
+          <div
+            className="text-center text-[9px] font-mono py-0.5 rounded"
+            style={{ backgroundColor: palette.panelBg, border: `1px solid ${palette.panelBorder}`, color: palette.textMuted, minWidth: '30px' }}
+          >
+            {Math.round(scale * 100)}%
+          </div>
+          <button
+            onClick={handleZoomOut}
+            className="p-1.5 rounded transition-colors hover:opacity-80"
+            style={{ backgroundColor: palette.panelBg, border: `1px solid ${palette.panelBorder}`, color: palette.textMuted }}
+            title={t('activityMap.zoomOut')}
+          >
+            <Minus size={14} />
+          </button>
+          <div className="h-px" />
+          <button
+            onClick={handleZoomFit}
+            className="p-1.5 rounded transition-colors hover:opacity-80"
+            style={{ backgroundColor: palette.panelBg, border: `1px solid ${palette.panelBorder}`, color: palette.textMuted }}
+            title={t('activityMap.zoomFit')}
+          >
+            <Maximize size={14} />
+          </button>
+        </div>
 
         {/* Cockpit Overlay */}
         {cockpitAgent && (

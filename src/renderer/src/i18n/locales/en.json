@@ -239,7 +239,12 @@
   "activityMap": {
     "title": "ACTIVITY MAP",
     "system": "SYSTEM",
-    "online": "ONLINE"
+    "online": "ONLINE",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "zoomFit": "Fit to View",
+    "machineLocal": "Local",
+    "machineSSH": "SSH"
   },
   "configMap": {
     "title": "CONFIG MAP",
@@ -288,7 +293,9 @@
     "workspaces": "workspaces",
     "orgActiveAgents": "Active Agents",
     "orgGlobalLink": "Global Config",
-    "orgSharedMcp": "Shared MCP"
+    "orgSharedMcp": "Shared MCP",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen"
   },
   "agentTeams": {
     "external": "External CLI",

@@ -239,7 +239,12 @@
   "activityMap": {
     "title": "アクティビティマップ",
     "system": "システム",
-    "online": "稼働中"
+    "online": "稼働中",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "zoomFit": "全体表示",
+    "machineLocal": "ローカル",
+    "machineSSH": "SSH"
   },
   "configMap": {
     "title": "設定マップ",
@@ -288,7 +293,9 @@
     "workspaces": "ワークスペース",
     "orgActiveAgents": "稼働中エージェント",
     "orgGlobalLink": "グローバル設定",
-    "orgSharedMcp": "共有MCP"
+    "orgSharedMcp": "共有MCP",
+    "fullscreen": "フルスクリーン",
+    "exitFullscreen": "フルスクリーン解除"
   },
   "agentTeams": {
     "external": "外部CLI",

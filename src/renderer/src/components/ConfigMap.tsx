@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Minus, Maximize, GripHorizontal, Globe, FolderOpen } from 'lucide-react'
+import { Plus, Minus, Maximize, Maximize2, X, GripHorizontal, Globe, FolderOpen } from 'lucide-react'
 import { useAppStore } from '../stores/useAppStore'
 import { ConfigMapNode } from './ConfigMapNode'
 import { ConfigMapDetailPanel } from './ConfigMapDetailPanel'
@@ -191,6 +191,7 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
   const palette = resolved === 'dark' ? cyberPaletteDark : cyberPaletteLight
 
   const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview')
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const { activeWorkspaceId, agents, selectedAgentId } = useAppStore()
 
@@ -306,6 +307,16 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
     return () => el.removeEventListener('wheel', handleWheel)
   }, [data, loading])
 
+  // Escape to exit fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setIsFullscreen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullscreen])
+
   // Pan handlers
   const handlePointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (e.target instanceof SVGElement && e.target.tagName === 'svg') {
@@ -354,6 +365,10 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
 
   const handleZoomOut = useCallback(() => {
     setScale(s => Math.max(0.3, s - 0.2))
+  }, [])
+
+  const handleToggleFullscreen = useCallback(() => {
+    setIsFullscreen(f => !f)
   }, [])
 
   const handleZoomFit = useCallback(() => {
@@ -415,9 +430,9 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
 
   // Overview mode
   if (viewMode === 'overview') {
-    return (
-      <div className="group">
-        <div style={{ height: `${mapHeight}px` }} className="relative">
+    const overviewContent = (
+      <div className={isFullscreen ? 'h-full relative' : 'group'}>
+        <div style={isFullscreen ? { height: '100%' } : { height: `${mapHeight}px` }} className="relative">
           {/* Mode toggle */}
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex gap-0.5 bg-secondary rounded-lg p-0.5" style={{ zIndex: 20 }}>
             <button
@@ -435,33 +450,55 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
               {t('configMap.detailView')}
             </button>
           </div>
+          {/* Fullscreen toggle */}
+          <div className="absolute top-2 right-2 z-10 flex gap-1" style={{ zIndex: 20 }}>
+            <button
+              onClick={handleToggleFullscreen}
+              className="p-1.5 rounded transition-colors hover:opacity-80"
+              style={{ backgroundColor: palette.panelBg, border: `1px solid ${palette.panelBorder}`, color: palette.textMuted }}
+              title={isFullscreen ? t('configMap.exitFullscreen') : t('configMap.fullscreen')}
+            >
+              {isFullscreen ? <X size={14} /> : <Maximize2 size={14} />}
+            </button>
+          </div>
           <ConfigMapOverview workspaces={workspaces} onDrillDown={handleDrillDown} />
         </div>
-        {/* Resize handle */}
-        <div
-          className="w-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-ns-resize py-1"
-          onPointerDown={(e) => {
-            e.preventDefault()
-            const startY = e.clientY
-            const startHeight = mapHeight
-            const onMove = (me: PointerEvent): void => {
-              const delta = me.clientY - startY
-              setMapHeight(Math.max(300, Math.min(startHeight + delta, 1200)))
-            }
-            const onUp = (): void => {
-              window.removeEventListener('pointermove', onMove)
-              window.removeEventListener('pointerup', onUp)
-            }
-            window.addEventListener('pointermove', onMove)
-            window.addEventListener('pointerup', onUp)
-          }}
-        >
-          <div className="h-1.5 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${palette.gray}80` }}>
-            <GripHorizontal size={10} style={{ color: palette.textMuted }} />
+        {/* Resize handle (not in fullscreen) */}
+        {!isFullscreen && (
+          <div
+            className="w-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-ns-resize py-1"
+            onPointerDown={(e) => {
+              e.preventDefault()
+              const startY = e.clientY
+              const startHeight = mapHeight
+              const onMove = (me: PointerEvent): void => {
+                const delta = me.clientY - startY
+                setMapHeight(Math.max(300, Math.min(startHeight + delta, 1200)))
+              }
+              const onUp = (): void => {
+                window.removeEventListener('pointermove', onMove)
+                window.removeEventListener('pointerup', onUp)
+              }
+              window.addEventListener('pointermove', onMove)
+              window.addEventListener('pointerup', onUp)
+            }}
+          >
+            <div className="h-1.5 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${palette.gray}80` }}>
+              <GripHorizontal size={10} style={{ color: palette.textMuted }} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     )
+
+    if (isFullscreen) {
+      return (
+        <div className="fixed inset-0 z-50" style={{ backgroundColor: palette.bg }}>
+          {overviewContent}
+        </div>
+      )
+    }
+    return overviewContent
   }
 
   // No project path resolved
@@ -493,9 +530,9 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
     )
   }
 
-  return (
-    <div className="group">
-    <div className="flex w-full" style={{ height: `${mapHeight}px` }}>
+  const detailContent = (
+    <div className={isFullscreen ? '' : 'group'}>
+    <div className="flex w-full" style={isFullscreen ? { height: '100%' } : { height: `${mapHeight}px` }}>
       {/* Main SVG area */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mode toggle + Workspace selector */}
@@ -854,6 +891,21 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
             style={{ zIndex: 20 }}
           >
             <button
+              onClick={handleToggleFullscreen}
+              className="p-1.5 rounded transition-colors hover:opacity-80"
+              style={{
+                backgroundColor: palette.panelBg,
+                border: `1px solid ${palette.panelBorder}`,
+                color: palette.textMuted
+              }}
+              title={isFullscreen ? t('configMap.exitFullscreen') : t('configMap.fullscreen')}
+            >
+              {isFullscreen ? <X size={14} /> : <Maximize2 size={14} />}
+            </button>
+
+            <div className="h-px" />
+
+            <button
               onClick={handleZoomIn}
               className="p-1.5 rounded transition-colors hover:opacity-80"
               style={{
@@ -920,29 +972,40 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
       )}
     </div>
 
-    {/* Field Size Adjust Handle */}
-    <div
-      className="w-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-ns-resize py-1"
-      onPointerDown={(e) => {
-        e.preventDefault()
-        const startY = e.clientY
-        const startHeight = mapHeight
-        const onMove = (me: PointerEvent): void => {
-          const delta = me.clientY - startY
-          setMapHeight(Math.max(300, Math.min(startHeight + delta, 1200)))
-        }
-        const onUp = (): void => {
-          window.removeEventListener('pointermove', onMove)
-          window.removeEventListener('pointerup', onUp)
-        }
-        window.addEventListener('pointermove', onMove)
-        window.addEventListener('pointerup', onUp)
-      }}
-    >
-      <div className="h-1.5 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${palette.gray}80` }}>
-        <GripHorizontal size={10} style={{ color: palette.textMuted }} />
+    {/* Field Size Adjust Handle (not in fullscreen) */}
+    {!isFullscreen && (
+      <div
+        className="w-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-ns-resize py-1"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          const startY = e.clientY
+          const startHeight = mapHeight
+          const onMove = (me: PointerEvent): void => {
+            const delta = me.clientY - startY
+            setMapHeight(Math.max(300, Math.min(startHeight + delta, 1200)))
+          }
+          const onUp = (): void => {
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+          }
+          window.addEventListener('pointermove', onMove)
+          window.addEventListener('pointerup', onUp)
+        }}
+      >
+        <div className="h-1.5 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${palette.gray}80` }}>
+          <GripHorizontal size={10} style={{ color: palette.textMuted }} />
+        </div>
       </div>
-    </div>
+    )}
     </div>
   )
+
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: palette.bg }}>
+        {detailContent}
+      </div>
+    )
+  }
+  return detailContent
 }
