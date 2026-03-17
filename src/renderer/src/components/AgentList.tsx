@@ -64,6 +64,8 @@ export function AgentList(): JSX.Element {
       return new Set()
     }
   })
+  const [renamingProject, setRenamingProject] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
   const [contextMenu, setContextMenu] = useState<{ agentId: string; x: number; y: number } | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const [workspaceColors, setWorkspaceColors] = useState<Record<string, string>>({})
@@ -160,6 +162,22 @@ export function AgentList(): JSX.Element {
       return next
     })
   }
+
+  const handleRenameProject = useCallback(async (oldName: string, newName: string) => {
+    if (!newName.trim() || newName === oldName) {
+      setRenamingProject(null)
+      return
+    }
+    // Update projectName for all agents in this group
+    const groupAgents = agents.filter(a => a.projectName === oldName)
+    for (const agent of groupAgents) {
+      await window.api.updateAgent(agent.id, { projectName: newName.trim() })
+    }
+    setRenamingProject(null)
+    // Refresh agents
+    const updated = await window.api.getAgents()
+    useAppStore.getState().setAgents(updated)
+  }, [agents])
 
   // Strip ANSI escape sequences and terminal control codes from PTY output
   const stripAnsi = (str: string): string =>
@@ -443,6 +461,11 @@ export function AgentList(): JSX.Element {
                 <div className="flex items-center gap-1 px-1.5 py-1 group">
                   <button
                     onClick={() => toggleProject(group.projectName)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      setRenamingProject(group.projectName)
+                      setRenameValue(group.projectName)
+                    }}
                     className="flex items-center gap-1 flex-1 min-w-0 rounded px-1 py-0.5 hover:bg-accent/50 transition-colors"
                   >
                     {isCollapsed ? (
@@ -451,9 +474,25 @@ export function AgentList(): JSX.Element {
                       <ChevronDown size={12} className="text-muted-foreground shrink-0" />
                     )}
                     <FolderOpen size={12} className="text-muted-foreground shrink-0" />
-                    <span className="text-[11px] font-semibold text-foreground truncate">
-                      {group.projectName}
-                    </span>
+                    {renamingProject === group.projectName ? (
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => handleRenameProject(group.projectName, renameValue)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRenameProject(group.projectName, renameValue)
+                          if (e.key === 'Escape') setRenamingProject(null)
+                        }}
+                        className="text-[11px] font-semibold bg-background border border-border rounded px-1 py-0 outline-none w-full"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="text-[11px] font-semibold text-foreground truncate">
+                        {group.projectName}
+                      </span>
+                    )}
                     <span className="text-[9px] text-muted-foreground shrink-0 ml-auto">
                       {group.agents.length}
                     </span>
