@@ -309,9 +309,10 @@ function setupIPC(): void {
   // Agent management
   ipcMain.handle('agent:create', async (_event, params: CreateAgentParams) => {
     // Validate required fields
-    if (!params.name?.trim() || !params.projectPath?.trim() || !params.projectName?.trim()) {
-      throw new Error('name, projectPath, and projectName are required')
+    if (!params.name?.trim() || !params.projectName?.trim()) {
+      throw new Error('name and projectName are required')
     }
+    // projectPath is optional for SSH workspaces (remote path, can't validate locally)
     const agent = database.createAgent(params)
     const { usePtyMode } = database.getSettings()
     if (usePtyMode) {
@@ -404,14 +405,19 @@ function setupIPC(): void {
     if (agent) {
       const { usePtyMode } = database.getSettings()
       if (usePtyMode) {
+        // Stop existing session
         if (sshSessionManager.hasSession(id)) {
           sshSessionManager.stopSession(id)
+        } else if (ptySessionManager.hasSession(id)) {
+          ptySessionManager.stopSession(id)
+        }
+        // Restart based on workspace type (not current session type)
+        if (isAgentSsh(id)) {
           const workspace = getAgentWorkspace(id)
           if (workspace) {
             await sshSessionManager.startSession(agent, workspace)
           }
         } else {
-          ptySessionManager.stopSession(id)
           await ptySessionManager.startSession(agent)
         }
       } else {
@@ -1254,6 +1260,7 @@ function setupPtyIPC(): void {
       if (!workspace) throw new Error('SSH workspace not found')
       await sshSessionManager.startSession(agent, workspace)
     } else {
+      // Only validate local paths (SSH paths are remote and can't be checked locally)
       await ptySessionManager.startSession(agent)
     }
   })
