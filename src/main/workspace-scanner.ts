@@ -208,9 +208,16 @@ export async function scanRemoteWorkspaces(
     }
 
     client.on('ready', () => {
+      // Validate rootPath to prevent shell injection
+      const safePath = rootPath.replace(/'/g, "'\\''" )
+      if (!/^\/[a-zA-Z0-9_./ -]+$/.test(rootPath)) {
+        client.end()
+        reject(new Error(`Invalid remote path: ${rootPath}`))
+        return
+      }
       // Use find to detect CLAUDE.md, .claude dirs, and AGENTS.md up to depth 4
       const cmd = [
-        `find "${rootPath}" -maxdepth 4 \\(`,
+        `find '${safePath}' -maxdepth 4 \\(`,
         `-name "CLAUDE.md" -o -name ".claude" -o -name "AGENTS.md" -o -name "package.json"`,
         `\\) -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null`
       ].join(' ')

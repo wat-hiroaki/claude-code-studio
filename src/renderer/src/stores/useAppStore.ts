@@ -38,11 +38,11 @@ interface AppState {
   showRightPane: boolean
   showBroadcast: boolean
   showDashboard: boolean
-  dashboardActiveView: 'activityMap' | 'chainGraph' | 'scheduler' | 'configMap'
+  dashboardActiveView: 'activityMap' | 'chainGraph' | 'scheduler' | 'configMap' | 'activityStream'
   toggleRightPane: () => void
   toggleBroadcast: () => void
   toggleDashboard: () => void
-  setDashboardActiveView: (view: 'orgChart' | 'skillMap' | 'kanban' | 'activityMap' | 'activityStream' | 'configMap' | 'chainGraph' | 'scheduler') => void
+  setDashboardActiveView: (view: AppState['dashboardActiveView']) => void
 
   // Layout
   paneLayout: 1 | 2 | 4
@@ -89,7 +89,7 @@ interface AppState {
   setAgentTeamsData: (data: AgentTeamsData) => void
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   // Agents
   agents: [],
   selectedAgentId: null,

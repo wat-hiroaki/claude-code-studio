@@ -182,20 +182,19 @@ export class PtySessionManager {
   writeInput(agentId: string, data: string): void {
     const session = this.sessions.get(agentId)
     if (!session) return
-    session.pty.write(data)
+    try { session.pty.write(data) } catch { /* EPIPE: session already exited */ }
   }
 
   resize(agentId: string, cols: number, rows: number): void {
     const session = this.sessions.get(agentId)
     if (!session) return
-    session.pty.resize(cols, rows)
+    try { session.pty.resize(cols, rows) } catch { /* session already exited */ }
   }
 
   interruptSession(agentId: string): void {
     const session = this.sessions.get(agentId)
     if (!session) return
-    // Send Ctrl+C
-    session.pty.write('\x03')
+    try { session.pty.write('\x03') } catch { /* EPIPE: session already exited */ }
   }
 
   stopSession(agentId: string): void {

@@ -103,6 +103,9 @@ function sendNotification(agentId: string, type: 'awaiting' | 'error' | 'taskCom
 const notificationTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const NOTIFICATION_DEBOUNCE_MS = 30000
 
+// Memory monitor timer — declared at module scope so before-quit can clear it
+let memoryMonitorTimer: ReturnType<typeof setInterval> | null = null
+
 function debouncedNotification(agentId: string, type: 'awaiting' | 'error' | 'taskComplete'): void {
   const key = `${agentId}:${type}`
   if (notificationTimers.has(key)) return // Already pending or recently sent
@@ -594,7 +597,7 @@ function setupIPC(): void {
   })
 
   // Memory monitor timer (every 30s) — cleared on app quit
-  const memoryMonitorTimer = setInterval(async () => {
+  memoryMonitorTimer = setInterval(async () => {
     if (!mainWindow) return
     try {
       const memInfo = await ptySessionManager.pollMemoryUsage()
@@ -1118,6 +1121,15 @@ app.whenReady().then(() => {
   })
 
   database = new Database()
+
+  // Reset stale agent statuses from previous session (prevents EPIPE storms)
+  const staleStatuses = ['active', 'thinking', 'tool_running', 'creating']
+  for (const agent of database.getAgents()) {
+    if (staleStatuses.includes(agent.status)) {
+      database.updateAgent(agent.id, { status: 'idle', claudeSessionId: null })
+    }
+  }
+
   // Initialize diagnostics (opt-out: enabled by default, user can disable in Settings)
   const settings = database.getSettings()
   const diagEnabled = (settings as unknown as Record<string, unknown>).diagnosticsEnabled !== false
@@ -1240,7 +1252,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   ;(app as any).isQuitting = true
-  clearInterval(memoryMonitorTimer)
+  if (memoryMonitorTimer) clearInterval(memoryMonitorTimer)
   if (agentTeamsTimer) clearInterval(agentTeamsTimer)
   chainScheduler?.stop()
   sessionManager.stopAll()
@@ -1384,7 +1396,7 @@ function setupDiagnosticsIPC(): void {
 
   // Hook execution logs
   ipcMain.handle('hook:getLogs', (_event, limit?: number, event?: string) => {
-    return db.getHookExecutionLogs(limit ?? 50, event)
+    return database.getHookExecutionLogs(limit ?? 50, event)
   })
 
   // Agent Teams (Claude Code CLI integration)

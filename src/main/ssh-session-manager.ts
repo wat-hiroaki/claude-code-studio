@@ -65,7 +65,8 @@ export class SshSessionManager {
       }
     }
 
-    const tmuxSessionName = `ccs-${workspace.name.replace(/\s+/g, '-').toLowerCase()}-${agent.name.replace(/\s+/g, '-').toLowerCase()}`
+    const sanitize = (s: string): string => s.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
+    const tmuxSessionName = `ccs-${sanitize(workspace.name)}-${sanitize(agent.name)}`
 
     return new Promise((resolve, reject) => {
       const client = new Client()
@@ -155,19 +156,19 @@ export class SshSessionManager {
   writeInput(agentId: string, data: string): void {
     const session = this.sessions.get(agentId)
     if (!session?.channel) return
-    session.channel.write(data)
+    try { session.channel.write(data) } catch { /* EPIPE: channel closed */ }
   }
 
   resize(agentId: string, cols: number, rows: number): void {
     const session = this.sessions.get(agentId)
     if (!session?.channel) return
-    session.channel.setWindow(rows, cols, 0, 0)
+    try { session.channel.setWindow(rows, cols, 0, 0) } catch { /* channel closed */ }
   }
 
   interruptSession(agentId: string): void {
     const session = this.sessions.get(agentId)
     if (!session?.channel) return
-    session.channel.write('\x03')
+    try { session.channel.write('\x03') } catch { /* EPIPE: channel closed */ }
   }
 
   stopSession(agentId: string): void {
@@ -175,7 +176,7 @@ export class SshSessionManager {
     if (!session) return
     // Detach from tmux first (so session persists on remote)
     if (session.channel) {
-      session.channel.write('\x02d') // Ctrl+B, d — tmux detach
+      try { session.channel.write('\x02d') } catch { /* channel closed */ } // Ctrl+B, d — tmux detach
       setTimeout(() => {
         session.client.removeAllListeners()
         session.client.end()
