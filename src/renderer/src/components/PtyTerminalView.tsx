@@ -166,7 +166,8 @@ export function PtyTerminalView({ agentId, compact = false }: PtyTerminalViewPro
     })
     return () => {
       unsub()
-      window.api.ptyStop(agentId).catch(() => { /* ignore cleanup errors */ })
+      // Do NOT call ptyStop here — session should persist when switching views
+      // ptyStop is only called explicitly via stop button or agent archive
     }
   }, [agentId, agent?.projectPath])
 
