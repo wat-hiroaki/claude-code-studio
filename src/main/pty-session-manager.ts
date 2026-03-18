@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Agent, AgentStatus } from '@shared/types'
 import type { Database } from './database'
 import { validateProjectPath } from './session-manager'
+import { stripAnsiCodes } from './utils'
 
 interface PtySession {
   agentId: string
@@ -30,12 +31,6 @@ export interface AgentMemoryInfo {
 type PtyDataCallback = (agentId: string, data: string) => void
 type PtyStatusCallback = (agentId: string, status: AgentStatus) => void
 type PtyExitCallback = (agentId: string, exitCode: number) => void
-
-// ANSI escape sequence stripper for status detection
-function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '')
-}
 
 export class PtySessionManager {
   private sessions: Map<string, PtySession> = new Map()
@@ -379,7 +374,7 @@ export class PtySessionManager {
 
   private detectAndUpdateStatus(session: PtySession, rawData: string): void {
     session.outputBuffer = (session.outputBuffer + rawData).slice(-500)
-    const recentClean = stripAnsi(rawData)
+    const recentClean = stripAnsiCodes(rawData)
 
     // Ignore noise-only output (token counts, status bar fragments)
     const meaningfulLines = recentClean.split('\n').map(l => l.trim()).filter(l => l.length > 2 && !PtySessionManager.NOISE_PATTERNS.test(l))

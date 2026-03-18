@@ -14,6 +14,7 @@ import { ChainScheduler } from './scheduler'
 import { SshSessionManager } from './ssh-session-manager'
 import { initMainI18n, t } from './i18n'
 import { DiagnosticsEngine } from './diagnostics'
+import { stripAnsiCodes } from './utils'
 import type { CreateAgentParams, CliSessionInfo } from '@shared/types'
 
 // Track previous status per agent to detect task completion (thinking/tool_running → active)
@@ -23,11 +24,6 @@ const prevAgentStatus = new Map<string, string>()
 // Debounce per-agent to avoid flooding renderer with events
 const ptyParseTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const ptyParseBuffers = new Map<string, string>()
-
-function stripAnsiCodes(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '')
-}
 
 function parsePtyDataForActivityStream(agentId: string, rawData: string): void {
   // Accumulate data in a short buffer per agent
@@ -370,6 +366,10 @@ function setupIPC(): void {
     } else {
       await sessionManager.stopSession(id)
     }
+    // Clean up PTY parse state
+    const timer = ptyParseTimers.get(id)
+    if (timer) { clearTimeout(timer); ptyParseTimers.delete(id) }
+    ptyParseBuffers.delete(id)
     database.updateAgent(id, { status: 'archived' })
     // Notify renderer so UI removes the agent from the list
     mainWindow?.webContents.send('agent:status-change', id, 'archived')
@@ -1165,6 +1165,10 @@ app.whenReady().then(() => {
       handleStatusChangeWithNotification(agentId, status)
     },
     (agentId, exitCode) => {
+      // Clean up PTY parse state on exit
+      const timer = ptyParseTimers.get(agentId)
+      if (timer) { clearTimeout(timer); ptyParseTimers.delete(agentId) }
+      ptyParseBuffers.delete(agentId)
       mainWindow?.webContents.send('pty:exit', agentId, exitCode)
     }
   )

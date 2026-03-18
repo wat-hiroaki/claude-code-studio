@@ -2,12 +2,7 @@ import { existsSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
 import type { Database } from './database'
 import type { AgentStatus, TaskChain, Agent, ChainExecutionLog } from '@shared/types'
-
-// Simple ANSI stripper
-function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '')
-}
+import { stripAnsiCodes } from './utils'
 
 /**
  * ChainOrchestrator watches agent status changes and triggers
@@ -91,7 +86,7 @@ export class ChainOrchestrator {
    * Cleans ANSI, buffers it, and checks for keywords.
    */
   handlePtyData(agentId: string, data: string): void {
-    const cleanData = stripAnsi(data)
+    const cleanData = stripAnsiCodes(data)
     let buffer = (this.ptyBufferByAgent.get(agentId) || '') + cleanData
     // Keep last 50,000 characters to prevent memory leaks while keeping enough context
     buffer = buffer.slice(-50000)

@@ -35,7 +35,7 @@ function AgentHeader({ agent, compact, workspace, onRecoverSession }: { agent: A
     } catch (err) {
       showToast(t('toast.stopFailed', 'Stop failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }), 'error')
     }
-  }, [agent.id])
+  }, [agent.id, t])
 
   const handleInterrupt = useCallback(async () => {
     try {
@@ -43,7 +43,7 @@ function AgentHeader({ agent, compact, workspace, onRecoverSession }: { agent: A
     } catch (err) {
       showToast(t('toast.interruptFailed', 'Interrupt failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }), 'error')
     }
-  }, [agent.id])
+  }, [agent.id, t])
 
   const togglePin = useCallback(async () => {
     await window.api.updateAgent(agent.id, { isPinned: !agent.isPinned })
@@ -164,7 +164,10 @@ export function PtyTerminalView({ agentId, compact = false }: PtyTerminalViewPro
         setExitCode(code)
       }
     })
-    return () => { unsub() }
+    return () => {
+      unsub()
+      window.api.ptyStop(agentId).catch(() => { /* ignore cleanup errors */ })
+    }
   }, [agentId, agent?.projectPath])
 
   if (!agent) {
@@ -192,7 +195,7 @@ export function PtyTerminalView({ agentId, compact = false }: PtyTerminalViewPro
     } catch (err) {
       showToast(t('toast.restartFailed', 'Failed to restart: {{error}}', { error: err instanceof Error ? err.message : String(err) }), 'error')
     }
-  }, [agentId])
+  }, [agentId, t])
 
   return (
     <div className="flex h-full flex-col">

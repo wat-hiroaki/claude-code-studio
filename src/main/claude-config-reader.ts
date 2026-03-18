@@ -513,6 +513,8 @@ export function readAgentTeamsData(): AgentTeamsData {
 
 export function readFileContent(filePath: string): string {
   try {
+    const stats = statSync(filePath)
+    if (stats.size > 1024 * 1024) return '[File too large to display]'
     return readFileSync(filePath, 'utf-8')
   } catch {
     return ''

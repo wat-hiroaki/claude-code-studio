@@ -33,7 +33,7 @@ const historyMap = new Map<string, string[]>()
 export function Composer({ agentId, disabled = false, className }: ComposerProps): JSX.Element {
   const { t } = useTranslation()
   const { templates, addTemplate, updateTemplate: storeUpdateTemplate, removeTemplate, planModeAgents, togglePlanMode } = useAppStore()
-  const isPlanMode = planModeAgents.has(agentId)
+  const isPlanMode = planModeAgents[agentId] === true
   const [value, setValue] = useState('')
   const [showTemplates, setShowTemplates] = useState(false)
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -55,8 +55,16 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
   const isDragging = useRef(false)
   const dragStartY = useRef(0)
   const dragStartHeight = useRef(0)
+  const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const effectiveMaxHeight = customMaxHeight > 0 ? customMaxHeight : DEFAULT_MAX_HEIGHT
+
+  // Cleanup send timer on unmount
+  useEffect(() => {
+    return () => {
+      if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
+    }
+  }, [])
 
   // Merge built-in + custom templates, filtered
   const allTemplates = useMemo(() => {
@@ -81,7 +89,7 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
     savedDraft.current = ''
 
     // Prepend plan mode instruction if active
-    const planPrefix = useAppStore.getState().planModeAgents.has(agentId)
+    const planPrefix = useAppStore.getState().planModeAgents[agentId] === true
       ? '[PLAN MODE] Do NOT modify any files. Only investigate, analyze, and propose a plan.\n\n'
       : ''
 
@@ -93,7 +101,9 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
 
     // Send text to PTY, then send carriage return separately after a short delay.
     window.api.ptyWrite(agentId, fullMessage)
-    setTimeout(() => {
+    if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
+    sendTimerRef.current = setTimeout(() => {
+      sendTimerRef.current = null
       window.api.ptyWrite(agentId, '\r')
     }, 50)
     setValue('')

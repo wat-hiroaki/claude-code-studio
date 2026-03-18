@@ -142,7 +142,7 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
     })
 
     // Right-click context menu: copy selection
-    terminal.element?.addEventListener('contextmenu', (e) => {
+    const contextMenuHandler = (e: MouseEvent): void => {
       const selection = terminal.getSelection()
       if (selection) {
         e.preventDefault()
@@ -154,7 +154,8 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
           setTimeout(() => { el.style.opacity = '1' }, 100)
         }
       }
-    })
+    }
+    terminal.element?.addEventListener('contextmenu', contextMenuHandler)
 
     // Receive PTY output
     const unsubData = window.api.onPtyData((id, data) => {
@@ -180,6 +181,7 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
       unsubData()
       unsubExit()
       resizeObserver.disconnect()
+      terminal.element?.removeEventListener('contextmenu', contextMenuHandler)
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null

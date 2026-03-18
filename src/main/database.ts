@@ -49,6 +49,8 @@ interface DBData {
 export class Database {
   private data: DBData
   private dbPath: string
+  private dirty = false
+  private saveTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
     const userDataPath = app.getPath('userData')
@@ -185,6 +187,18 @@ export class Database {
     }
   }
 
+  private scheduleSave(): void {
+    this.dirty = true
+    if (this.saveTimer) return
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null
+      if (this.dirty) {
+        this.dirty = false
+        this.save()
+      }
+    }, 500)
+  }
+
   exportData(): string {
     return JSON.stringify(this.data, null, 2)
   }
@@ -192,7 +206,7 @@ export class Database {
   // Scrollback buffer management (max 50KB per agent)
   saveScrollback(agentId: string, buffer: string): void {
     this.data.sessionScrollbacks[agentId] = buffer.slice(-50000)
-    this.save()
+    this.scheduleSave()
   }
 
   getScrollback(agentId: string): string {
@@ -203,7 +217,7 @@ export class Database {
     for (const [id, buf] of Object.entries(scrollbacks)) {
       this.data.sessionScrollbacks[id] = buf.slice(-50000)
     }
-    this.save()
+    this.scheduleSave()
   }
 
   getDbPath(): string {
@@ -240,7 +254,7 @@ export class Database {
     }
 
     this.data.agents.push(agent)
-    this.save()
+    this.scheduleSave()
     return agent
   }
 
@@ -274,7 +288,7 @@ export class Database {
       }
     }
     agent.updatedAt = new Date().toISOString()
-    this.save()
+    this.scheduleSave()
     return agent
   }
 
@@ -306,7 +320,7 @@ export class Database {
       this.data.messages = this.data.messages.filter(m => !idsToRemove.has(m.id))
     }
 
-    this.save()
+    this.scheduleSave()
     return msg
   }
 
@@ -324,7 +338,7 @@ export class Database {
       createdAt: new Date().toISOString()
     }
     this.data.taskChains.push(tc)
-    this.save()
+    this.scheduleSave()
     return tc
   }
 
@@ -336,13 +350,13 @@ export class Database {
     const chain = this.data.taskChains.find((c) => c.id === id)
     if (!chain) throw new Error(`Chain ${id} not found`)
     Object.assign(chain, updates)
-    this.save()
+    this.scheduleSave()
     return chain
   }
 
   deleteChain(id: string): void {
     this.data.taskChains = this.data.taskChains.filter((c) => c.id !== id)
-    this.save()
+    this.scheduleSave()
   }
 
   // Broadcasts
@@ -356,7 +370,7 @@ export class Database {
       createdAt: new Date().toISOString()
     }
     this.data.broadcasts.push(b)
-    this.save()
+    this.scheduleSave()
     return b.id
   }
 
@@ -364,7 +378,7 @@ export class Database {
     const b = this.data.broadcasts.find((br) => br.id === id)
     if (b) {
       Object.assign(b, updates)
-      this.save()
+      this.scheduleSave()
     }
   }
 
@@ -372,7 +386,7 @@ export class Database {
   createTeam(name: string, color: string): Team {
     const team: Team = { id: uuidv4(), name, color }
     this.data.teams.push(team)
-    this.save()
+    this.scheduleSave()
     return team
   }
 
@@ -385,7 +399,7 @@ export class Database {
     if (!team) throw new Error(`Team ${id} not found`)
     if (updates.name !== undefined) team.name = updates.name
     if (updates.color !== undefined) team.color = updates.color
-    this.save()
+    this.scheduleSave()
     return team
   }
 
@@ -395,7 +409,7 @@ export class Database {
     for (const agent of this.data.agents) {
       if (agent.teamId === id) agent.teamId = null
     }
-    this.save()
+    this.scheduleSave()
   }
 
   // Tasks
@@ -410,7 +424,7 @@ export class Database {
       updatedAt: new Date().toISOString()
     }
     this.data.tasks.push(task)
-    this.save()
+    this.scheduleSave()
     return task
   }
 
@@ -428,13 +442,13 @@ export class Database {
     if (updates.agentId !== undefined) task.agentId = updates.agentId
     task.updatedAt = new Date().toISOString()
     
-    this.save()
+    this.scheduleSave()
     return task
   }
 
   deleteTask(id: string): void {
     this.data.tasks = this.data.tasks.filter((t) => t.id !== id)
-    this.save()
+    this.scheduleSave()
   }
 
   // Team Stats
@@ -470,7 +484,7 @@ export class Database {
       updatedAt: now
     }
     this.data.workspaces.push(workspace)
-    this.save()
+    this.scheduleSave()
     return workspace
   }
 
@@ -501,7 +515,7 @@ export class Database {
       }
     }
     ws.updatedAt = new Date().toISOString()
-    this.save()
+    this.scheduleSave()
     return ws
   }
 
@@ -510,7 +524,7 @@ export class Database {
     if (this.data.activeWorkspaceId === id) {
       this.data.activeWorkspaceId = null
     }
-    this.save()
+    this.scheduleSave()
   }
 
   setActiveWorkspace(id: string | null): void {
@@ -518,7 +532,7 @@ export class Database {
       throw new Error(`Workspace ${id} not found`)
     }
     this.data.activeWorkspaceId = id
-    this.save()
+    this.scheduleSave()
   }
 
   getActiveWorkspaceId(): string | null {
@@ -532,7 +546,7 @@ export class Database {
 
   updateSettings(updates: Partial<AppSettings>): AppSettings {
     this.data.settings = { ...this.getSettings(), ...updates }
-    this.save()
+    this.scheduleSave()
     return this.data.settings
   }
 
@@ -545,7 +559,7 @@ export class Database {
     if (this.data.chainExecutionLogs.length > Database.MAX_EXECUTION_LOGS) {
       this.data.chainExecutionLogs = this.data.chainExecutionLogs.slice(-Database.MAX_EXECUTION_LOGS)
     }
-    this.save()
+    this.scheduleSave()
     return log
   }
 
@@ -553,7 +567,7 @@ export class Database {
     const log = this.data.chainExecutionLogs.find(l => l.id === id)
     if (log) {
       Object.assign(log, updates)
-      this.save()
+      this.scheduleSave()
     }
   }
 
@@ -569,7 +583,7 @@ export class Database {
     if (this.data.hookExecutionLogs.length > Database.MAX_EXECUTION_LOGS) {
       this.data.hookExecutionLogs = this.data.hookExecutionLogs.slice(-Database.MAX_EXECUTION_LOGS)
     }
-    this.save()
+    this.scheduleSave()
   }
 
   getHookExecutionLogs(limit = 50, event?: string): HookExecutionLog[] {
@@ -587,6 +601,12 @@ export class Database {
   }
 
   close(): void {
+    // Flush any pending debounced save immediately on exit
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer)
+      this.saveTimer = null
+    }
+    this.dirty = false
     this.save()
   }
 
@@ -601,7 +621,7 @@ export class Database {
       createdAt: new Date().toISOString()
     }
     this.data.promptTemplates.push(template)
-    this.save()
+    this.scheduleSave()
     return template
   }
 
@@ -618,13 +638,13 @@ export class Database {
         ;(tmpl as unknown as Record<string, unknown>)[key] = value
       }
     }
-    this.save()
+    this.scheduleSave()
     return tmpl
   }
 
   deleteTemplate(id: string): void {
     this.data.promptTemplates = this.data.promptTemplates.filter((t) => t.id !== id)
-    this.save()
+    this.scheduleSave()
   }
 
   // --- Agent Definitions ---
@@ -645,12 +665,12 @@ export class Database {
       createdAt: new Date().toISOString()
     }
     this.data.agentTemplates.push(tmpl)
-    this.save()
+    this.scheduleSave()
     return tmpl
   }
 
   deleteAgentTemplate(id: string): void {
     this.data.agentTemplates = this.data.agentTemplates.filter((t) => t.id !== id)
-    this.save()
+    this.scheduleSave()
   }
 }

@@ -62,7 +62,7 @@ interface AppState {
   setUsePtyMode: (use: boolean) => void
 
   // Plan mode (per-agent)
-  planModeAgents: Set<string>
+  planModeAgents: Record<string, boolean>
   togglePlanMode: (agentId: string) => void
   isPlanMode: (agentId: string) => boolean
 
@@ -76,7 +76,7 @@ interface AppState {
   removeChainFlow: (id: string) => void
 
   // Memory monitoring
-  agentMemory: Map<string, number>
+  agentMemory: Record<string, number>
   setAgentMemory: (agentId: string, memoryMB: number) => void
   setAgentMemoryBulk: (entries: Array<{ agentId: string; memoryMB: number }>) => void
 
@@ -221,16 +221,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Terminal mode
   // Plan mode
-  planModeAgents: new Set<string>(),
+  planModeAgents: {},
   togglePlanMode: (agentId) => set((state) => {
-    const next = new Set(state.planModeAgents)
-    if (next.has(agentId)) next.delete(agentId)
-    else next.add(agentId)
+    const next = { ...state.planModeAgents }
+    if (next[agentId]) {
+      delete next[agentId]
+    } else {
+      next[agentId] = true
+    }
     return { planModeAgents: next }
   }),
-  isPlanMode: (agentId) => get().planModeAgents.has(agentId),
+  isPlanMode: (agentId) => get().planModeAgents[agentId] === true,
 
-  usePtyMode: localStorage.getItem('usePtyMode') !== 'false',
+  usePtyMode: (() => { try { return localStorage.getItem('usePtyMode') !== 'false' } catch { return true } })(),
   setUsePtyMode: (use) => {
     localStorage.setItem('usePtyMode', String(use))
     // Sync to main process
@@ -257,20 +260,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
 
   // Memory monitoring
-  agentMemory: new Map(),
-  setAgentMemory: (agentId, memoryMB) => set((state) => {
-    const next = new Map(state.agentMemory)
-    next.set(agentId, memoryMB)
-    return { agentMemory: next }
-  }),
+  agentMemory: {},
+  setAgentMemory: (agentId, memoryMB) => set((state) => ({
+    agentMemory: { ...state.agentMemory, [agentId]: memoryMB }
+  })),
   setAgentMemoryBulk: (entries) => set((state) => {
-    const next = new Map(state.agentMemory)
-    for (const { agentId, memoryMB } of entries) next.set(agentId, memoryMB)
+    const next = { ...state.agentMemory }
+    for (const { agentId, memoryMB } of entries) next[agentId] = memoryMB
     return { agentMemory: next }
   }),
 
   // Terminal
-  terminalFontSize: parseInt(localStorage.getItem('terminalFontSize') ?? '13'),
+  terminalFontSize: (() => { try { return parseInt(localStorage.getItem('terminalFontSize') ?? '13') || 13 } catch { return 13 } })(),
   setTerminalFontSize: (size) => {
     localStorage.setItem('terminalFontSize', String(size))
     set({ terminalFontSize: size })
@@ -281,7 +282,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAgentTeamsData: (data) => set({ agentTeamsData: data }),
 
   // Theme
-  theme: (localStorage.getItem('theme') as 'dark' | 'light' | 'system') || 'dark',
+  theme: (() => { try { return (localStorage.getItem('theme') as 'dark' | 'light' | 'system') || 'dark' } catch { return 'dark' as const } })(),
   setTheme: (theme) => {
     const isDark =
       theme === 'dark' ||

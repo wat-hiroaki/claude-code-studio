@@ -425,6 +425,7 @@ export function App(): JSX.Element {
         e.preventDefault()
         if (selectedAgentId) {
           const agentToArchive = agents.find((a) => a.id === selectedAgentId)
+          // TODO: Replace with non-blocking dialog (custom modal)
           if (agentToArchive && confirm(t('agent.confirmArchive', 'Archive agent "{{name}}"?', { name: agentToArchive.name }))) {
             window.api.archiveAgent(selectedAgentId)
             const remaining = agents.filter((a) => a.id !== selectedAgentId && a.status !== 'archived')

@@ -2,6 +2,7 @@ import { Client, type ConnectConfig, type ClientChannel } from 'ssh2'
 import { readFileSync } from 'fs'
 import type { Agent, AgentStatus, Workspace } from '@shared/types'
 import type { Database } from './database'
+import { stripAnsiCodes } from './utils'
 
 interface SshSession {
   agentId: string
@@ -16,12 +17,6 @@ interface SshSession {
 type SshDataCallback = (agentId: string, data: string) => void
 type SshStatusCallback = (agentId: string, status: AgentStatus) => void
 type SshExitCallback = (agentId: string, exitCode: number) => void
-
-// ANSI escape sequence stripper
-function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '')
-}
 
 export class SshSessionManager {
   private sessions: Map<string, SshSession> = new Map()
@@ -145,6 +140,25 @@ export class SshSessionManager {
           this.database.updateAgent(agent.id, { status: 'active' })
           this.onStatusChange(agent.id, 'active')
           settled = true
+
+          // Post-connection error/close handlers (after settled = true, safeReject becomes no-op)
+          client.on('error', (err) => {
+            console.error(`[SshSession] Post-connection error for ${agent.id}:`, err)
+            this.sessions.delete(agent.id)
+            this.database.updateAgent(agent.id, { status: 'error' })
+            this.onStatusChange(agent.id, 'error')
+            this.onExit(agent.id, 1)
+          })
+
+          client.on('close', () => {
+            if (this.sessions.has(agent.id)) {
+              this.sessions.delete(agent.id)
+              this.database.updateAgent(agent.id, { status: 'idle' })
+              this.onStatusChange(agent.id, 'idle')
+              this.onExit(agent.id, 0)
+            }
+          })
+
           resolve()
         })
       })
@@ -206,8 +220,8 @@ export class SshSessionManager {
   private detectStatus(session: SshSession, rawData: string): void {
     // Cap buffer at 2KB to prevent unbounded growth
     session.outputBuffer = (session.outputBuffer + rawData).slice(-2000)
-    const recentClean = stripAnsi(rawData)
-    const bufferClean = stripAnsi(session.outputBuffer)
+    const recentClean = stripAnsiCodes(rawData)
+    const bufferClean = stripAnsiCodes(session.outputBuffer)
 
     const lines = recentClean.split('\n').map((l) => l.trim()).filter((l) => l.length > 2)
     if (lines.length > 0) {
