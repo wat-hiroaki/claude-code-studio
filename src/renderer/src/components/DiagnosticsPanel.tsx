@@ -232,7 +232,7 @@ export function DiagnosticsPanel(): JSX.Element {
           <div className="flex items-start gap-2 rounded-md bg-muted/30 p-2">
             <AlertTriangle size={12} className="text-yellow-500 shrink-0 mt-0.5" />
             <p className="text-[9px] text-muted-foreground leading-relaxed">
-              Logs are stored locally at <code className="text-foreground">~/.claude-code-desktop/logs/</code> and auto-rotate every 7 days. No data is sent externally.
+              Logs are stored locally at <code className="text-foreground">~/.claude-code-studio/logs/</code> and auto-rotate every 7 days. No data is sent externally.
             </p>
           </div>
         </>

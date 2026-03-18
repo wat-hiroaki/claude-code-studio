@@ -259,7 +259,7 @@ export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
 
           {/* Version */}
           <div className="text-center text-[10px] text-muted-foreground/50 pt-2 border-t border-border/30">
-            Claude Code Desktop v{appVersion || '0.0.0'}
+            Claude Code Studio v{appVersion || '0.0.0'}
           </div>
         </div>
       </div>

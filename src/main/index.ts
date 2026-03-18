@@ -259,7 +259,7 @@ function createTrayIcon(): Electron.NativeImage {
 function createTray(): void {
   const icon = createTrayIcon()
   tray = new Tray(icon)
-  tray.setToolTip('Claude Code Desktop')
+  tray.setToolTip('Claude Code Studio')
   updateTrayMenu()
 
   tray.on('click', () => {
@@ -950,7 +950,7 @@ function setupIPC(): void {
   // Database backup/export
   ipcMain.handle('db:export', async () => {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow!, {
-      defaultPath: `claude-code-desktop-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      defaultPath: `claude-code-studio-backup-${new Date().toISOString().slice(0, 10)}.json`,
       filters: [{ name: 'Database Backup', extensions: ['json'] }]
     })
     if (canceled || !filePath) return null
@@ -1086,7 +1086,7 @@ process.on('unhandledRejection', (reason) => {
 
 app.whenReady().then(() => {
   initMainI18n()
-  electronApp.setAppUserModelId('dev.wat-hiroaki.claude-code-desktop')
+  electronApp.setAppUserModelId('dev.wat-hiroaki.claude-code-studio')
 
   // 自動アップデート
   if (!is.dev) {

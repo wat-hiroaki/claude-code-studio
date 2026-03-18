@@ -1,5 +1,5 @@
-appId: dev.wat-hiroaki.claude-code-desktop
-productName: Claude Code Desktop
+appId: dev.wat-hiroaki.claude-code-studio
+productName: Claude Code Studio
 directories:
   buildResources: build
 npmRebuild: false
@@ -7,7 +7,7 @@ buildDependenciesFromSource: false
 publish:
   - provider: github
     owner: wat-hiroaki
-    repo: claude-code-desktop
+    repo: claude-code-studio
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -16,7 +16,7 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 forceCodeSigning: false
 win:
-  executableName: claude-code-desktop
+  executableName: claude-code-studio
   target:
     - target: nsis
       arch:

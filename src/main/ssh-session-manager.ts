@@ -65,7 +65,7 @@ export class SshSessionManager {
       }
     }
 
-    const tmuxSessionName = `ccd-${workspace.name.replace(/\s+/g, '-').toLowerCase()}-${agent.name.replace(/\s+/g, '-').toLowerCase()}`
+    const tmuxSessionName = `ccs-${workspace.name.replace(/\s+/g, '-').toLowerCase()}-${agent.name.replace(/\s+/g, '-').toLowerCase()}`
 
     return new Promise((resolve, reject) => {
       const client = new Client()

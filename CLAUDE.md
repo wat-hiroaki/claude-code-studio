@@ -1,4 +1,4 @@
-# Claude Code Desktop
+# Claude Code Studio
 
 ## Architecture
 - **Electron** (main + preload + renderer) via `electron-vite`
@@ -8,7 +8,7 @@
 
 ## Key Patterns
 - SessionManager uses `claude -p --input-format stream-json --output-format stream-json`
-- JSON file DB at `%APPDATA%/claude-code-desktop/database.json` (atomic writes)
+- JSON file DB at `%APPDATA%/claude-code-studio/database.json` (atomic writes)
 - All IPC calls validated in main process before execution
 - `validateProjectPath()` prevents path traversal in session-manager
 
