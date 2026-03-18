@@ -22,7 +22,8 @@
   },
   "pane": {
     "selectAgent": "Select an agent to start",
-    "label": "Pane"
+    "label": "Pane",
+    "swapWith": "Swap with Pane {{n}}"
   },
   "agent": {
     "new": "New Agent",

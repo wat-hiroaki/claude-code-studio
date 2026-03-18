@@ -55,11 +55,12 @@ function useResolvedTheme(): 'dark' | 'light' {
   return theme
 }
 
-// Layout: arrange workspace nodes in a grid/ring
+// Layout: arrange workspace nodes in a ring around a center point
 function getWorkspacePositions(
   summaries: WorkspaceConfigSummary[],
   cx: number,
-  cy: number
+  cy: number,
+  radius = 220
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>()
   const count = summaries.length
@@ -67,13 +68,12 @@ function getWorkspacePositions(
   if (count === 0) return positions
 
   if (count === 1) {
-    positions.set(summaries[0].projectPath, { x: cx, y: cy })
+    // Single workspace: place above the GLOBAL node
+    positions.set(summaries[0].projectPath, { x: cx, y: cy - radius })
     return positions
   }
 
   if (count <= 6) {
-    // Ring layout
-    const radius = 220
     for (let i = 0; i < count; i++) {
       const angle = ((i / count) * Math.PI * 2) - Math.PI / 2
       positions.set(summaries[i].projectPath, {
@@ -82,7 +82,6 @@ function getWorkspacePositions(
       })
     }
   } else {
-    // Grid layout
     const cols = Math.ceil(Math.sqrt(count))
     const spacing = 250
     const startX = cx - ((cols - 1) * spacing) / 2
@@ -98,6 +97,74 @@ function getWorkspacePositions(
   }
 
   return positions
+}
+
+// Group summaries by host (local vs SSH hostname)
+interface HostCluster {
+  hostId: string
+  label: string
+  sublabel: string
+  summaries: WorkspaceConfigSummary[]
+  center: { x: number; y: number }
+}
+
+function computeHostClusters(
+  summaries: WorkspaceConfigSummary[],
+  workspaces: Workspace[],
+  svgWidth: number,
+  svgHeight: number
+): HostCluster[] {
+  // Map projectPath → hostId
+  const pathToHost = new Map<string, string>()
+  const hostNames = new Map<string, string>() // hostId → display name
+  for (const ws of workspaces) {
+    if (ws.connectionType === 'ssh' && ws.sshConfig) {
+      pathToHost.set(ws.path, ws.sshConfig.host)
+      hostNames.set(ws.sshConfig.host, ws.name || ws.sshConfig.host)
+    } else {
+      pathToHost.set(ws.path, 'local')
+    }
+  }
+
+  // Group summaries by host
+  const groups = new Map<string, WorkspaceConfigSummary[]>()
+  for (const s of summaries) {
+    const hostId = pathToHost.get(s.projectPath) || (s.projectName.startsWith('[SSH]') ? '_ssh_unknown' : 'local')
+    if (!groups.has(hostId)) groups.set(hostId, [])
+    groups.get(hostId)!.push(s)
+  }
+
+  const hostIds = Array.from(groups.keys())
+  const cx = svgWidth / 2
+  const cy = svgHeight / 2
+
+  // Compute cluster centers
+  const clusters: HostCluster[] = []
+  if (hostIds.length <= 1) {
+    const hostId = hostIds[0] || 'local'
+    clusters.push({
+      hostId,
+      label: 'GLOBAL',
+      sublabel: hostId === 'local' ? '~/.claude' : `~/.claude (${hostNames.get(hostId) || hostId})`,
+      summaries: groups.get(hostId) || [],
+      center: { x: cx, y: cy }
+    })
+  } else {
+    // Spread clusters horizontally
+    const clusterSpacing = svgWidth / (hostIds.length + 1)
+    hostIds.forEach((hostId, i) => {
+      const isLocal = hostId === 'local'
+      clusters.push({
+        hostId,
+        label: isLocal ? 'GLOBAL' : 'GLOBAL',
+        sublabel: isLocal ? '~/.claude (Local)' : `~/.claude (${hostNames.get(hostId) || hostId})`,
+        summaries: groups.get(hostId) || [],
+        center: { x: clusterSpacing * (i + 1), y: cy }
+      })
+    })
+  }
+
+  return clusters
 }
 
 interface ConfigMapOverviewProps {
@@ -246,7 +313,24 @@ export function ConfigMapOverview({ workspaces, onDrillDown }: ConfigMapOverview
     setScale(1)
   }, [])
 
-  const positions = useMemo(() => getWorkspacePositions(summaries, cx, cy), [summaries, cx, cy])
+  // Compute per-host clusters
+  const clusters = useMemo(
+    () => computeHostClusters(summaries, workspaces, svgWidth, svgHeight),
+    [summaries, workspaces, svgWidth, svgHeight]
+  )
+
+  // Compute workspace positions per cluster
+  const positions = useMemo(() => {
+    const allPositions = new Map<string, { x: number; y: number }>()
+    const clusterCount = clusters.length
+    const radius = clusterCount > 1 ? 160 : 220
+    for (const cluster of clusters) {
+      const clusterPositions = getWorkspacePositions(cluster.summaries, cluster.center.x, cluster.center.y, radius)
+      for (const [k, v] of clusterPositions) allPositions.set(k, v)
+    }
+    return allPositions
+  }, [clusters])
+
 
   const hoveredSummary = hoveredPath ? summaries.find(s => s.projectPath === hoveredPath) : null
 
@@ -309,56 +393,66 @@ export function ConfigMapOverview({ workspaces, onDrillDown }: ConfigMapOverview
         onPointerLeave={handlePointerUp}
       >
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${scale})`} style={{ transformOrigin: `${cx}px ${cy}px` }}>
-          {/* Center: Global Config hub */}
-          <circle cx={cx} cy={cy} r={30} fill={palette.bg} stroke={palette.cyan} strokeWidth={1} opacity={0.4} />
-          <text
-            x={cx} y={cy - 3}
-            textAnchor="middle"
-            className="font-mono uppercase"
-            fontSize={8}
-            fill={palette.cyan}
-            opacity={0.6}
-            style={{ userSelect: 'none' }}
-          >
-            GLOBAL
-          </text>
-          <text
-            x={cx} y={cy + 8}
-            textAnchor="middle"
-            className="font-mono uppercase"
-            fontSize={6}
-            fill={palette.textMuted}
-            opacity={0.4}
-            style={{ userSelect: 'none' }}
-          >
-            ~/.claude
-          </text>
-
-          {/* Connections from global to each workspace */}
-          {summaries.map(s => {
-            const pos = positions.get(s.projectPath)
-            if (!pos) return null
-            const dx = pos.x - cx
-            const dy = pos.y - cy
-            const dist = Math.sqrt(dx * dx + dy * dy)
-            if (dist < 1) return null
-            const nx = dx / dist
-            const ny = dy / dist
-            const r = getNodeRadius(s)
-            return (
-              <line
-                key={`edge-${s.projectPath}`}
-                x1={cx + nx * 32}
-                y1={cy + ny * 32}
-                x2={pos.x - nx * (r + 2)}
-                y2={pos.y - ny * (r + 2)}
-                stroke={palette.cyan}
-                strokeWidth={1.5}
-                strokeDasharray="6 4"
-                opacity={0.5}
+          {/* Per-host GLOBAL nodes */}
+          {clusters.map(cluster => (
+            <g key={`global-${cluster.hostId}`}>
+              <circle
+                cx={cluster.center.x} cy={cluster.center.y} r={30}
+                fill={palette.bg}
+                stroke={cluster.hostId === 'local' ? palette.cyan : palette.purple}
+                strokeWidth={1}
+                opacity={0.4}
               />
-            )
-          })}
+              <text
+                x={cluster.center.x} y={cluster.center.y - 3}
+                textAnchor="middle"
+                className="font-mono uppercase"
+                fontSize={8}
+                fill={cluster.hostId === 'local' ? palette.cyan : palette.purple}
+                opacity={0.6}
+                style={{ userSelect: 'none' }}
+              >
+                {cluster.label}
+              </text>
+              <text
+                x={cluster.center.x} y={cluster.center.y + 8}
+                textAnchor="middle"
+                className="font-mono"
+                fontSize={6}
+                fill={palette.textMuted}
+                opacity={0.4}
+                style={{ userSelect: 'none' }}
+              >
+                {cluster.sublabel}
+              </text>
+
+              {/* Connections from this GLOBAL to its workspaces */}
+              {cluster.summaries.map(s => {
+                const pos = positions.get(s.projectPath)
+                if (!pos) return null
+                const dx = pos.x - cluster.center.x
+                const dy = pos.y - cluster.center.y
+                const dist = Math.sqrt(dx * dx + dy * dy)
+                if (dist < 1) return null
+                const nx = dx / dist
+                const ny = dy / dist
+                const r = getNodeRadius(s)
+                return (
+                  <line
+                    key={`edge-${s.projectPath}`}
+                    x1={cluster.center.x + nx * 32}
+                    y1={cluster.center.y + ny * 32}
+                    x2={pos.x - nx * (r + 2)}
+                    y2={pos.y - ny * (r + 2)}
+                    stroke={cluster.hostId === 'local' ? palette.cyan : palette.purple}
+                    strokeWidth={1.5}
+                    strokeDasharray="6 4"
+                    opacity={0.5}
+                  />
+                )
+              })}
+            </g>
+          ))}
 
           {/* Shared MCP connections between workspaces */}
           {summaries.map((a, i) =>

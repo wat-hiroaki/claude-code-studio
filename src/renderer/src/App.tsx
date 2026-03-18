@@ -25,7 +25,7 @@ interface PaneGridProps {
 }
 
 function PaneGrid({ onOpenScanner }: PaneGridProps): JSX.Element {
-  const { selectedAgentId, paneLayout, paneAgentIds, setPaneAgent, agents, usePtyMode } = useAppStore()
+  const { selectedAgentId, paneLayout, paneAgentIds, setPaneAgent, swapPanes, agents, usePtyMode } = useAppStore()
   const { t } = useTranslation()
 
   // For single pane, use selectedAgentId directly
@@ -96,22 +96,40 @@ function PaneGrid({ onOpenScanner }: PaneGridProps): JSX.Element {
       )
     }
 
-    // Pane close header for PtyTerminalView (TerminalView has its own close)
-    const paneCloseHeader = usePtyMode ? (
-      <div className="flex items-center justify-end px-1 py-0.5 bg-card/50 border-b border-border/30">
-        <button
-          onClick={() => setPaneAgent(i, null)}
-          className="text-[10px] px-1.5 py-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-          title="Close pane"
-        >
-          ✕
-        </button>
+    // Pane toolbar: swap buttons + close
+    const maxPane = paneLayout === 4 ? 3 : 1
+    const agentName = agents.find(a => a.id === agentId)?.name || ''
+    const paneToolbar = (
+      <div className="flex items-center justify-between px-2 py-0.5 bg-card/80 border-b border-border/40">
+        <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]">
+          {t('pane.label', 'Pane')} {i + 1}{agentName ? ` · ${agentName}` : ''}
+        </span>
+        <div className="flex items-center gap-0.5">
+          {/* Swap with other panes */}
+          {Array.from({ length: maxPane + 1 }, (_, j) => j).filter(j => j !== i && paneAgentIds[j]).map(j => (
+            <button
+              key={`swap-${j}`}
+              onClick={() => swapPanes(i, j)}
+              className="text-[9px] px-1.5 py-0.5 rounded hover:bg-accent text-muted-foreground transition-colors"
+              title={t('pane.swapWith', 'Swap with Pane {{n}}', { n: j + 1 })}
+            >
+              ⇄{j + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => setPaneAgent(i, null)}
+            className="text-[10px] px-1.5 py-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors ml-1"
+            title={t('common.close', 'Close')}
+          >
+            ✕
+          </button>
+        </div>
       </div>
-    ) : null
+    )
 
     return (
       <div className="flex flex-col h-full overflow-hidden">
-        {paneCloseHeader}
+        {paneToolbar}
         <div className="flex-1 min-h-0 overflow-hidden">
           {usePtyMode ? (
             <PtyTerminalView

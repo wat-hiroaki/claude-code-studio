@@ -49,6 +49,7 @@ interface AppState {
   paneAgentIds: (string | null)[]
   setPaneLayout: (layout: 1 | 2 | 4) => void
   setPaneAgent: (paneIndex: number, agentId: string | null) => void
+  swapPanes: (a: number, b: number) => void
 
   // Workspace
   activeWorkspaceId: string | null
@@ -201,6 +202,14 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => {
       const ids = [...state.paneAgentIds]
       ids[paneIndex] = agentId
+      return { paneAgentIds: ids }
+    }),
+  swapPanes: (a, b) =>
+    set((state) => {
+      const ids = [...state.paneAgentIds]
+      const tmp = ids[a]
+      ids[a] = ids[b]
+      ids[b] = tmp
       return { paneAgentIds: ids }
     }),
 

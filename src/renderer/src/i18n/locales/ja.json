@@ -22,7 +22,8 @@
   },
   "pane": {
     "selectAgent": "エージェントを選択して開始",
-    "label": "ペイン"
+    "label": "ペイン",
+    "swapWith": "ペイン{{n}}と入替"
   },
   "agent": {
     "new": "新規エージェント",
