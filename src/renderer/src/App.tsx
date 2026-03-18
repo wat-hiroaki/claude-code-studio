@@ -41,14 +41,16 @@ function PaneGrid({ onOpenScanner }: PaneGridProps): JSX.Element {
     }
   }, [selectedAgentId, paneLayout, paneAgentIds, setPaneAgent])
 
+  // Dashboard always renders full width regardless of pane layout
+  if (!selectedAgentId) {
+    return (
+      <div className="flex-1 min-w-0 overflow-hidden h-full">
+        <Dashboard fullHeight onOpenScanner={onOpenScanner} />
+      </div>
+    )
+  }
+
   if (paneLayout === 1) {
-    if (!selectedAgentId) {
-      return (
-        <div className="flex-1 min-w-0 overflow-hidden h-full">
-          <Dashboard fullHeight onOpenScanner={onOpenScanner} />
-        </div>
-      )
-    }
     return (
       <div className="flex-1 min-w-0 overflow-hidden h-full">
         {usePtyMode
@@ -60,10 +62,6 @@ function PaneGrid({ onOpenScanner }: PaneGridProps): JSX.Element {
 
   const renderPane = (i: number): JSX.Element => {
     const agentId = paneAgentIds[i]
-    // Show Dashboard in first pane when no agent is selected globally
-    if (i === 0 && !selectedAgentId && !agentId) {
-      return <Dashboard fullHeight onOpenScanner={onOpenScanner} />
-    }
     if (!agentId) {
       // Filter out agents already assigned to other panes (prevent duplicates)
       const assignedIds = new Set(paneAgentIds.filter((id, idx) => id && idx !== i))
