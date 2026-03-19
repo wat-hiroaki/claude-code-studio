@@ -68,11 +68,14 @@ function computeHostClusters(
   const pathToHost = new Map<string, string>()
   const hostNames = new Map<string, string>() // hostId → display name
   for (const ws of workspaces) {
-    if (ws.connectionType === 'ssh' && ws.sshConfig) {
-      pathToHost.set(ws.path, ws.sshConfig.host)
-      hostNames.set(ws.sshConfig.host, ws.name || ws.sshConfig.host)
-    } else {
-      pathToHost.set(ws.path, 'local')
+    const paths = ws.projects?.map(p => p.path) ?? (ws.path ? [ws.path] : [])
+    for (const wsPath of paths) {
+      if (ws.connectionType === 'ssh' && ws.sshConfig) {
+        pathToHost.set(wsPath, ws.sshConfig.host)
+        hostNames.set(ws.sshConfig.host, ws.name || ws.sshConfig.host)
+      } else {
+        pathToHost.set(wsPath, 'local')
+      }
     }
   }
 
@@ -158,10 +161,14 @@ export function ConfigMapOverview({ workspaces, onDrillDown }: ConfigMapOverview
     const seen = new Map<string, string>() // normalizedPath → originalPath
     const sshSet = new Set<string>()
     for (const ws of workspaces) {
-      if (isHomePath(ws.path)) continue
-      const key = normalize(ws.path)
-      if (!seen.has(key)) seen.set(key, ws.path)
-      if (ws.connectionType === 'ssh') sshSet.add(ws.path)
+      // Collect from workspace.projects[]
+      const paths = ws.projects?.map(p => p.path) ?? (ws.path ? [ws.path] : [])
+      for (const wsPath of paths) {
+        if (isHomePath(wsPath)) continue
+        const key = normalize(wsPath)
+        if (!seen.has(key)) seen.set(key, wsPath)
+        if (ws.connectionType === 'ssh') sshSet.add(wsPath)
+      }
     }
     for (const agent of agents) {
       if (!agent.projectPath || isHomePath(agent.projectPath)) continue
@@ -187,7 +194,7 @@ export function ConfigMapOverview({ workspaces, onDrillDown }: ConfigMapOverview
       const scannedPaths = new Set(result.map(s => s.projectPath))
       for (const sshPath of sshPaths) {
         if (scannedPaths.has(sshPath)) continue
-        const ws = workspaces.find(w => w.path === sshPath)
+        const ws = workspaces.find(w => w.projects?.some(p => p.path === sshPath) || w.path === sshPath)
         const name = ws?.name || sshPath.split('/').pop() || sshPath.split('\\').pop() || sshPath
         result.push({
           projectPath: sshPath,

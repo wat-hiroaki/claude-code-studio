@@ -73,7 +73,8 @@
     "reportsTo": "Reports To",
     "noTeam": "No Team",
     "workspace": "Workspace",
-    "advanced": "Advanced Options"
+    "advanced": "Advanced Options",
+    "manualPath": "Manual input..."
   },
   "teamMgmt": {
     "title": "Organization",
@@ -407,7 +408,13 @@
     "sshKeyPath": "Key path (optional)",
     "sshRemotePath": "Remote path (e.g. /home/user)",
     "sshHint": "Enter SSH connection details above to scan a remote server.",
-    "scanningRemote": "Connecting and scanning remote server..."
+    "scanningRemote": "Connecting and scanning remote server...",
+    "addProject": "Add Project",
+    "removeProject": "Remove Project",
+    "confirmRemoveProject": "Remove \"{{name}}\" from workspace?",
+    "noProjects": "No projects yet",
+    "projectCount": "{{count}} project(s)",
+    "projectPathInvalid": "Project folder not found"
   },
   "files": {
     "title": "Changed Files",
@@ -461,7 +468,10 @@
     "dataLocation": "Data: {{path}}",
     "restartFailed": "Restart failed: {{error}}",
     "stopFailed": "Stop failed: {{error}}",
-    "interruptFailed": "Interrupt failed: {{error}}"
+    "interruptFailed": "Interrupt failed: {{error}}",
+    "projectAdded": "Added \"{{name}}\" to workspace",
+    "projectRemoved": "Removed \"{{name}}\" from workspace",
+    "projectRelinked": "Project path updated"
   },
   "error": {
     "somethingWrong": "Something went wrong",

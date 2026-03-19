@@ -54,8 +54,8 @@ interface AppState {
   // Workspace
   activeWorkspaceId: string | null
   setActiveWorkspaceId: (id: string | null) => void
-  invalidWorkspaceIds: string[]
-  setInvalidWorkspaceIds: (ids: string[]) => void
+  invalidProjects: { workspaceId: string; projectPath: string }[]
+  setInvalidProjects: (projects: { workspaceId: string; projectPath: string }[]) => void
 
   // Terminal mode
   usePtyMode: boolean
@@ -216,8 +216,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Workspace
   activeWorkspaceId: null,
   setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
-  invalidWorkspaceIds: [],
-  setInvalidWorkspaceIds: (ids) => set({ invalidWorkspaceIds: ids }),
+  invalidProjects: [],
+  setInvalidProjects: (projects) => set({ invalidProjects: projects }),
 
   // Terminal mode
   // Plan mode

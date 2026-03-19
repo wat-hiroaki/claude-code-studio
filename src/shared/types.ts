@@ -142,10 +142,17 @@ export interface Broadcast {
   createdAt: string
 }
 
+export interface WorkspaceProject {
+  path: string
+  name: string
+  addedAt: string
+}
+
 export interface Workspace {
   id: string
   name: string
   path: string
+  projects: WorkspaceProject[]
   color: string
   connectionType: 'local' | 'ssh'
   sshConfig?: {
@@ -162,10 +169,10 @@ export interface Workspace {
 
 export interface CreateWorkspaceParams {
   name: string
-  path: string
   color?: string
   connectionType: 'local' | 'ssh'
   sshConfig?: Workspace['sshConfig']
+  projects?: { path: string; name: string }[]
 }
 
 export interface CreateAgentParams {
@@ -385,6 +392,8 @@ export interface ElectronAPI {
   updateWorkspace: (id: string, updates: Partial<Workspace>) => Promise<Workspace>
   deleteWorkspace: (id: string) => Promise<void>
   setActiveWorkspace: (id: string | null) => Promise<void>
+  addProjectToWorkspace: (workspaceId: string, project: { path: string; name: string }) => Promise<Workspace>
+  removeProjectFromWorkspace: (workspaceId: string, projectPath: string) => Promise<Workspace>
 
   // PTY terminal
   ptyStart: (agentId: string) => Promise<void>
@@ -453,7 +462,7 @@ export interface ElectronAPI {
   isDiagnosticsEnabled: () => Promise<boolean>
 
   // Workspace path events
-  onWorkspacePathInvalid: (callback: (workspaceIds: string[]) => void) => () => void
+  onWorkspacePathInvalid: (callback: (invalid: { workspaceId: string; projectPath: string }[]) => void) => () => void
 
   // Agent Teams (Claude Code CLI integration)
   getAgentTeamsData: () => Promise<AgentTeamsData>

@@ -104,6 +104,8 @@ const api: ElectronAPI = {
   updateWorkspace: (id, updates) => ipcRenderer.invoke('workspace:update', id, updates),
   deleteWorkspace: (id) => ipcRenderer.invoke('workspace:delete', id),
   setActiveWorkspace: (id) => ipcRenderer.invoke('workspace:setActive', id),
+  addProjectToWorkspace: (workspaceId, project) => ipcRenderer.invoke('workspace:addProject', workspaceId, project),
+  removeProjectFromWorkspace: (workspaceId, projectPath) => ipcRenderer.invoke('workspace:removeProject', workspaceId, projectPath),
 
   // Workspace scanner
   scanWorkspaces: (rootPath) => ipcRenderer.invoke('workspace:scan', rootPath),
@@ -224,9 +226,9 @@ const api: ElectronAPI = {
   isFullscreen: () => ipcRenderer.invoke('window:isFullscreen'),
 
   // Workspace path events
-  onWorkspacePathInvalid: (callback: (workspaceIds: string[]) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, workspaceIds: string[]): void => {
-      callback(workspaceIds)
+  onWorkspacePathInvalid: (callback: (invalid: { workspaceId: string; projectPath: string }[]) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, invalid: { workspaceId: string; projectPath: string }[]): void => {
+      callback(invalid)
     }
     ipcRenderer.on('workspace:path-invalid', handler)
     return () => ipcRenderer.removeListener('workspace:path-invalid', handler)

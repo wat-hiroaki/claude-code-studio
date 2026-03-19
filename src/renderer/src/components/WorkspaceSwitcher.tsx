@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../stores/useAppStore'
 import { cn } from '../lib/utils'
-import { ChevronDown, Plus, Laptop, Server, Pencil, Trash2, Check, X, AlertTriangle, FolderOpen } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Laptop, Server, Pencil, Trash2, Check, X, AlertTriangle, FolderOpen } from 'lucide-react'
 import { CreateWorkspaceDialog } from './CreateWorkspaceDialog'
 import { showToast } from './ToastContainer'
 import type { Workspace } from '@shared/types'
@@ -21,8 +21,9 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editColor, setEditColor] = useState('')
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const { activeWorkspaceId, setActiveWorkspaceId, invalidWorkspaceIds, setInvalidWorkspaceIds } = useAppStore()
+  const { activeWorkspaceId, setActiveWorkspaceId, invalidProjects, setInvalidProjects } = useAppStore()
 
   const loadWorkspaces = useCallback(async () => {
     const ws = await window.api.getWorkspaces()
@@ -35,11 +36,11 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
 
   // Listen for workspace path invalid events from main process
   useEffect(() => {
-    const unsub = window.api.onWorkspacePathInvalid((ids) => {
-      setInvalidWorkspaceIds(ids)
+    const unsub = window.api.onWorkspacePathInvalid((invalid) => {
+      setInvalidProjects(invalid)
     })
     return unsub
-  }, [setInvalidWorkspaceIds])
+  }, [setInvalidProjects])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -103,25 +104,64 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
     }
   }
 
-  const handleRelinkPath = async (ws: Workspace, e: React.MouseEvent): Promise<void> => {
+  const toggleExpanded = (wsId: string, e: React.MouseEvent): void => {
+    e.stopPropagation()
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(wsId)) next.delete(wsId)
+      else next.add(wsId)
+      return next
+    })
+  }
+
+  const handleAddProject = async (ws: Workspace, e: React.MouseEvent): Promise<void> => {
     e.stopPropagation()
     try {
-      const newPath = await window.api.selectFolder()
-      if (!newPath) return
-      await window.api.updateWorkspace(ws.id, { path: newPath })
-      // Remove from invalid list
-      setInvalidWorkspaceIds(invalidWorkspaceIds.filter(id => id !== ws.id))
+      const folder = await window.api.selectFolder()
+      if (!folder) return
+      const folderName = folder.replace(/\\/g, '/').split('/').pop() || folder
+      await window.api.addProjectToWorkspace(ws.id, { path: folder, name: folderName })
       await loadWorkspaces()
-      showToast(
-        t('toast.workspaceRelinked', 'Workspace "{{name}}" path updated. Agent paths have been updated automatically.', { name: ws.name }),
-        'success'
-      )
+      showToast(t('toast.projectAdded', 'Added "{{name}}" to workspace', { name: folderName }), 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), 'error')
     }
   }
 
-  const isInvalid = (wsId: string): boolean => invalidWorkspaceIds.includes(wsId)
+  const handleRemoveProject = async (ws: Workspace, projectPath: string, projectName: string, e: React.MouseEvent): Promise<void> => {
+    e.stopPropagation()
+    if (!confirm(t('workspace.confirmRemoveProject', 'Remove "{{name}}" from workspace?', { name: projectName }))) return
+    try {
+      await window.api.removeProjectFromWorkspace(ws.id, projectPath)
+      await loadWorkspaces()
+      showToast(t('toast.projectRemoved', 'Removed "{{name}}" from workspace', { name: projectName }), 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), 'error')
+    }
+  }
+
+  const isProjectInvalid = (wsId: string, projectPath: string): boolean =>
+    invalidProjects.some(ip => ip.workspaceId === wsId && ip.projectPath === projectPath)
+
+  const hasAnyInvalidProject = (wsId: string): boolean =>
+    invalidProjects.some(ip => ip.workspaceId === wsId)
+
+  const handleRelinkProject = async (ws: Workspace, oldPath: string, e: React.MouseEvent): Promise<void> => {
+    e.stopPropagation()
+    try {
+      const newPath = await window.api.selectFolder()
+      if (!newPath) return
+      // Remove old, add new
+      await window.api.removeProjectFromWorkspace(ws.id, oldPath)
+      const folderName = newPath.replace(/\\/g, '/').split('/').pop() || newPath
+      await window.api.addProjectToWorkspace(ws.id, { path: newPath, name: folderName })
+      setInvalidProjects(invalidProjects.filter(ip => !(ip.workspaceId === ws.id && ip.projectPath === oldPath)))
+      await loadWorkspaces()
+      showToast(t('toast.projectRelinked', 'Project path updated'), 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), 'error')
+    }
+  }
 
   return (
     <div ref={dropdownRef} className={cn('relative', className)}>
@@ -140,6 +180,9 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
               style={{ backgroundColor: activeWorkspace.color }}
             />
             <span className="truncate flex-1 font-medium">{activeWorkspace.name}</span>
+            <span className="text-[10px] text-muted-foreground shrink-0">
+              {t('workspace.projectCount', '{{count}} project(s)', { count: activeWorkspace.projects?.length ?? 0 })}
+            </span>
             {activeWorkspace.connectionType === 'ssh' && (
               <Server size={12} className="text-muted-foreground shrink-0" />
             )}
@@ -156,7 +199,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-[70vh] overflow-y-auto">
           {/* All agents option */}
           <button
             onClick={() => handleSelect(null)}
@@ -171,7 +214,10 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
 
           {workspaces.length > 0 && (
             <div className="border-t border-border/50">
-              {workspaces.map((ws) => (
+              {workspaces.map((ws) => {
+                const isExpanded = expandedIds.has(ws.id)
+                const projectCount = ws.projects?.length ?? 0
+                return (
                 <div key={ws.id}>
                   {editingId === ws.id ? (
                     <div className="px-3 py-2 space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -206,58 +252,106 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
                       </div>
                     </div>
                   ) : (
-                    <div className="group flex items-center">
-                      <button
-                        onClick={() => handleSelect(ws.id)}
-                        className={cn(
-                          'flex items-center gap-2 flex-1 px-3 py-2 text-sm hover:bg-muted/50 transition-colors',
-                          activeWorkspaceId === ws.id && 'bg-primary/10',
-                          isInvalid(ws.id) && 'opacity-70'
-                        )}
-                      >
-                        <div
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: ws.color }}
-                        />
-                        <span className="truncate flex-1 text-left">{ws.name}</span>
-                        {isInvalid(ws.id) && (
-                          <span title={t('workspace.pathInvalid', 'Workspace folder not found')}>
-                            <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+                    <>
+                      <div className="group flex items-center">
+                        {/* Expand toggle */}
+                        <button
+                          onClick={(e) => toggleExpanded(ws.id, e)}
+                          className="p-1 ml-1 rounded hover:bg-accent/50 text-muted-foreground shrink-0"
+                        >
+                          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        </button>
+                        {/* Workspace select */}
+                        <button
+                          onClick={() => handleSelect(ws.id)}
+                          className={cn(
+                            'flex items-center gap-2 flex-1 px-2 py-2 text-sm hover:bg-muted/50 transition-colors',
+                            activeWorkspaceId === ws.id && 'bg-primary/10'
+                          )}
+                        >
+                          <div
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: ws.color }}
+                          />
+                          <span className="truncate flex-1 text-left">{ws.name}</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {projectCount}
                           </span>
-                        )}
-                        {ws.connectionType === 'ssh' && (
-                          <Server size={12} className="text-muted-foreground" />
-                        )}
-                      </button>
-                      <div className="flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
-                        {isInvalid(ws.id) && (
+                          {hasAnyInvalidProject(ws.id) && (
+                            <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+                          )}
+                          {ws.connectionType === 'ssh' && (
+                            <Server size={12} className="text-muted-foreground" />
+                          )}
+                        </button>
+                        {/* Edit / Delete */}
+                        <div className="flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pr-1">
                           <button
-                            onClick={(e) => handleRelinkPath(ws, e)}
-                            className="p-1 rounded hover:bg-accent text-amber-400"
-                            title={t('workspace.relinkPath', 'Re-link folder')}
+                            onClick={(e) => handleStartEdit(ws, e)}
+                            className="p-1 rounded hover:bg-accent text-muted-foreground"
+                            title={t('common.edit', 'Edit')}
                           >
-                            <FolderOpen size={11} />
+                            <Pencil size={11} />
                           </button>
-                        )}
-                        <button
-                          onClick={(e) => handleStartEdit(ws, e)}
-                          className="p-1 rounded hover:bg-accent text-muted-foreground"
-                          title={t('common.edit', 'Edit')}
-                        >
-                          <Pencil size={11} />
-                        </button>
-                        <button
-                          onClick={(e) => handleDelete(ws, e)}
-                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-red-400"
-                          title={t('common.delete', 'Delete')}
-                        >
-                          <Trash2 size={11} />
-                        </button>
+                          <button
+                            onClick={(e) => handleDelete(ws, e)}
+                            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-red-400"
+                            title={t('common.delete', 'Delete')}
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
+
+                      {/* Expanded project list */}
+                      {isExpanded && (
+                        <div className="ml-5 mr-1 mb-1">
+                          {ws.projects && ws.projects.length > 0 ? (
+                            ws.projects.map((proj) => {
+                              const invalid = isProjectInvalid(ws.id, proj.path)
+                              return (
+                                <div key={proj.path} className="group/proj flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted/30 text-[11px]">
+                                  <FolderOpen size={11} className={cn('shrink-0', invalid ? 'text-amber-400' : 'text-muted-foreground')} />
+                                  <span className={cn('truncate flex-1', invalid && 'text-amber-400 line-through')} title={proj.path}>
+                                    {proj.name}
+                                  </span>
+                                  {invalid && (
+                                    <button
+                                      onClick={(e) => handleRelinkProject(ws, proj.path, e)}
+                                      className="p-0.5 rounded hover:bg-accent text-amber-400 opacity-0 group-hover/proj:opacity-100 transition-opacity"
+                                      title={t('workspace.projectPathInvalid', 'Project folder not found')}
+                                    >
+                                      <FolderOpen size={10} />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => handleRemoveProject(ws, proj.path, proj.name, e)}
+                                    className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-red-400 opacity-0 group-hover/proj:opacity-100 transition-opacity shrink-0"
+                                    title={t('workspace.removeProject', 'Remove Project')}
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              )
+                            })
+                          ) : (
+                            <div className="text-[10px] text-muted-foreground px-2 py-1">
+                              {t('workspace.noProjects', 'No projects yet')}
+                            </div>
+                          )}
+                          <button
+                            onClick={(e) => handleAddProject(ws, e)}
+                            className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted/30 rounded transition-colors"
+                          >
+                            <Plus size={11} />
+                            <span>{t('workspace.addProject', 'Add Project')}</span>
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
 

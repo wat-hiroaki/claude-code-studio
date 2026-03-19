@@ -2,7 +2,8 @@ import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
-import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate, AgentDefinition, ChainExecutionLog, HookExecutionLog } from '@shared/types'
+import { basename } from 'path'
+import type { Agent, Team, Message, TaskChain, Broadcast, CreateAgentParams, TeamStats, Workspace, WorkspaceProject, CreateWorkspaceParams, Task, TaskStatus, PromptTemplate, AgentDefinition, ChainExecutionLog, HookExecutionLog } from '@shared/types'
 
 interface WindowBounds {
   x?: number
@@ -163,6 +164,23 @@ export class Database {
         }
         const sorted = [...pathCounts.entries()].sort((a, b) => b[1] - a[1])
         ws.path = sorted[0]?.[0] ?? ''
+      }
+    }
+
+    // Migrate workspace.path → workspace.projects[]
+    for (const ws of raw.workspaces as Record<string, unknown>[]) {
+      if (!Array.isArray(ws.projects)) {
+        const wsPath = String(ws.path || '')
+        if (wsPath) {
+          const pathName = basename(wsPath.replace(/\\/g, '/')) || wsPath
+          ws.projects = [{
+            path: wsPath,
+            name: pathName,
+            addedAt: String(ws.createdAt || new Date().toISOString())
+          }]
+        } else {
+          ws.projects = []
+        }
       }
     }
 
@@ -471,10 +489,16 @@ export class Database {
   // Workspaces
   createWorkspace(params: CreateWorkspaceParams): Workspace {
     const now = new Date().toISOString()
+    const projects: WorkspaceProject[] = (params.projects ?? []).map(p => ({
+      path: p.path,
+      name: p.name || basename(p.path.replace(/\\/g, '/')) || p.path,
+      addedAt: now
+    }))
     const workspace: Workspace = {
       id: uuidv4(),
       name: params.name,
-      path: params.path ?? '',
+      path: projects[0]?.path ?? '',
+      projects,
       color: params.color ?? '#748ffc',
       connectionType: params.connectionType,
       sshConfig: params.sshConfig,
@@ -496,24 +520,44 @@ export class Database {
     const ws = this.data.workspaces.find((w) => w.id === id)
     if (!ws) throw new Error(`Workspace ${id} not found`)
 
-    // Detect path change and cascade to agents
-    if (updates.path && updates.path !== ws.path && ws.path) {
-      const oldPath = ws.path
-      const newPath = updates.path
-      for (const agent of this.data.agents) {
-        if (agent.workspaceId === id && agent.projectPath.startsWith(oldPath)) {
-          agent.projectPath = agent.projectPath.replace(oldPath, newPath)
-          agent.updatedAt = new Date().toISOString()
-        }
-      }
-    }
-
-    const allowedFields = ['name', 'path', 'color', 'connectionType', 'sshConfig', 'configStorageLocation', 'isActive']
+    const allowedFields = ['name', 'path', 'color', 'connectionType', 'sshConfig', 'configStorageLocation', 'isActive', 'projects']
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         ;(ws as unknown as Record<string, unknown>)[key] = value
       }
     }
+    ws.updatedAt = new Date().toISOString()
+    this.scheduleSave()
+    return ws
+  }
+
+  addProjectToWorkspace(wsId: string, project: { path: string; name: string }): Workspace {
+    const ws = this.data.workspaces.find((w) => w.id === wsId)
+    if (!ws) throw new Error(`Workspace ${wsId} not found`)
+    // Duplicate check
+    if (ws.projects.some(p => p.path === project.path)) {
+      throw new Error(`Project path "${project.path}" already exists in workspace`)
+    }
+    ws.projects.push({
+      path: project.path,
+      name: project.name || basename(project.path.replace(/\\/g, '/')) || project.path,
+      addedAt: new Date().toISOString()
+    })
+    // Keep legacy path in sync with first project
+    if (ws.projects.length === 1) {
+      ws.path = project.path
+    }
+    ws.updatedAt = new Date().toISOString()
+    this.scheduleSave()
+    return ws
+  }
+
+  removeProjectFromWorkspace(wsId: string, projectPath: string): Workspace {
+    const ws = this.data.workspaces.find((w) => w.id === wsId)
+    if (!ws) throw new Error(`Workspace ${wsId} not found`)
+    ws.projects = ws.projects.filter(p => p.path !== projectPath)
+    // Keep legacy path in sync
+    ws.path = ws.projects[0]?.path ?? ''
     ws.updatedAt = new Date().toISOString()
     this.scheduleSave()
     return ws

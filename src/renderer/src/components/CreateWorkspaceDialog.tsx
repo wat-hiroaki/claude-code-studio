@@ -15,7 +15,6 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
   const { t } = useTranslation()
   const { setActiveWorkspaceId } = useAppStore()
   const [name, setName] = useState('')
-  const [path, setPath] = useState('')
   const [color, setColor] = useState('#748ffc')
   const [connectionType, setConnectionType] = useState<'local' | 'ssh'>('local')
   const [sshHost, setSshHost] = useState('')
@@ -64,7 +63,6 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
     try {
       const ws = await window.api.createWorkspace({
         name: name.trim(),
-        path: connectionType === 'local' ? path : '',
         color,
         connectionType,
         sshConfig: connectionType === 'ssh' ? {
@@ -83,7 +81,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
     } finally {
       setLoading(false)
     }
-  }, [name, path, color, connectionType, sshHost, sshPort, sshUsername, sshKeyPath, setActiveWorkspaceId, onClose])
+  }, [name, color, connectionType, sshHost, sshPort, sshUsername, sshKeyPath, setActiveWorkspaceId, onClose, t])
 
   const canCreate = name.trim() && (connectionType === 'local' || (sshHost && sshUsername))
 
@@ -122,40 +120,6 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
               </div>
             </div>
            </div>
-
-          {/* Path (local only) */}
-          {connectionType === 'local' && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">{t('workspace.path', 'Folder Path')}</label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  type="text"
-                  value={path}
-                  onChange={(e) => setPath(e.target.value)}
-                  placeholder={t('workspace.pathPlaceholder', 'C:\\Users\\user\\projects\\my-project')}
-                  className="flex-1 px-3 py-2 bg-secondary rounded-lg text-sm outline-none font-mono text-xs"
-                />
-                <button
-                  onClick={async () => {
-                    const selected = await window.api.selectFolder()
-                    if (selected) {
-                      setPath(selected)
-                      if (!name.trim()) {
-                        const basename = selected.split(/[\\/]/).pop() || ''
-                        setName(basename)
-                      }
-                    }
-                  }}
-                  className="px-3 py-2 bg-secondary rounded-lg text-xs hover:bg-accent transition-colors shrink-0"
-                >
-                  {t('common.browse', 'Browse')}
-                </button>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {t('workspace.pathHint', 'Used to track workspace location and auto-repair agent paths if the folder is renamed.')}
-              </p>
-            </div>
-          )}
 
           {/* Connection Type */}
           <div>

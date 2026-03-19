@@ -97,7 +97,7 @@ export class SshSessionManager {
         // 1. cd to project path if available
         // 2. Try tmux if available, otherwise plain shell
         // 3. Auto-start claude CLI
-        const projectPath = agent.projectPath || workspace.path
+        const projectPath = agent.projectPath || workspace.projects?.[0]?.path || workspace.path
         const cdCmd = projectPath ? `cd ${JSON.stringify(projectPath)} 2>/dev/null; ` : ''
         const claudeCmd = `claude`
 

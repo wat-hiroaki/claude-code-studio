@@ -39,15 +39,15 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
       setActiveWorkspace(ws)
       // Auto-fill project path from workspace if no prefill was provided
       if (ws && !prefill) {
-        if (ws.path) {
-          setProjectPath(ws.path)
-          const parts = ws.path.replace(/\\/g, '/').split('/')
-          const folderName = parts[parts.length - 1] || ''
+        if (ws.projects && ws.projects.length > 0) {
+          // Use first project as default
+          const firstProject = ws.projects[0]
+          setProjectPath(firstProject.path)
           if (!projectName.trim()) {
-            setProjectName(folderName || ws.name)
+            setProjectName(firstProject.name || ws.name)
           }
         } else if (ws.connectionType === 'ssh' && ws.sshConfig) {
-          // SSH workspace without path: use host as default project name
+          // SSH workspace without projects: use host as default project name
           if (!projectName.trim()) {
             setProjectName(`${ws.sshConfig.host}`)
           }
@@ -170,6 +170,30 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
 
           <div>
             <label className="text-xs font-medium text-muted-foreground">{t('agent.projectPath')}</label>
+            {/* Quick-select from workspace projects */}
+            {activeWorkspace && activeWorkspace.projects && activeWorkspace.projects.length > 0 && (
+              <select
+                value={projectPath}
+                onChange={(e) => {
+                  const selected = activeWorkspace.projects.find(p => p.path === e.target.value)
+                  if (selected) {
+                    setProjectPath(selected.path)
+                    if (!projectName.trim() || activeWorkspace.projects.some(p => p.name === projectName)) {
+                      setProjectName(selected.name)
+                    }
+                  } else if (e.target.value === '__manual__') {
+                    setProjectPath('')
+                    setProjectName('')
+                  }
+                }}
+                className="w-full mt-1 px-3 py-2 bg-secondary rounded-lg text-sm outline-none"
+              >
+                {activeWorkspace.projects.map(p => (
+                  <option key={p.path} value={p.path}>{p.name}</option>
+                ))}
+                <option value="__manual__">{t('agent.manualPath', 'Manual input...')}</option>
+              </select>
+            )}
             <div className="flex gap-2 mt-1">
               <input
                 type="text"

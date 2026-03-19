@@ -772,16 +772,30 @@ function setupIPC(): void {
     const p = params as Record<string, unknown>
     if (!p || typeof p !== 'object' || Array.isArray(p)) throw new Error('Invalid params')
     if (typeof p.name !== 'string' || !p.name.trim()) throw new Error('name is required')
-    if (typeof p.path !== 'string' || !p.path.trim()) throw new Error('path is required')
     const connectionType = p.connectionType === 'ssh' ? 'ssh' as const : 'local' as const
     const validated: import('@shared/types').CreateWorkspaceParams = {
       name: p.name,
-      path: p.path,
       connectionType,
       ...(typeof p.color === 'string' ? { color: p.color } : {}),
-      ...(connectionType === 'ssh' && p.sshConfig && typeof p.sshConfig === 'object' ? { sshConfig: p.sshConfig as import('@shared/types').CreateWorkspaceParams['sshConfig'] } : {})
+      ...(connectionType === 'ssh' && p.sshConfig && typeof p.sshConfig === 'object' ? { sshConfig: p.sshConfig as import('@shared/types').CreateWorkspaceParams['sshConfig'] } : {}),
+      ...(Array.isArray(p.projects) ? { projects: p.projects as { path: string; name: string }[] } : {})
     }
     return database.createWorkspace(validated)
+  })
+
+  ipcMain.handle('workspace:addProject', (_event, workspaceId: string, project: { path: string; name: string }) => {
+    if (typeof workspaceId !== 'string') throw new Error('Invalid workspace ID')
+    if (!project || typeof project.path !== 'string' || !project.path.trim()) throw new Error('project path is required')
+    return database.addProjectToWorkspace(workspaceId, {
+      path: project.path.trim(),
+      name: (project.name || '').trim()
+    })
+  })
+
+  ipcMain.handle('workspace:removeProject', (_event, workspaceId: string, projectPath: string) => {
+    if (typeof workspaceId !== 'string') throw new Error('Invalid workspace ID')
+    if (typeof projectPath !== 'string') throw new Error('Invalid project path')
+    return database.removeProjectFromWorkspace(workspaceId, projectPath)
   })
 
   ipcMain.handle('workspace:list', () => {
@@ -1230,15 +1244,20 @@ app.whenReady().then(() => {
   createWindow()
   createTray()
 
-  // Startup workspace path validation
+  // Startup workspace project path validation
   const workspaces = database.getWorkspaces()
-  const invalidWorkspaces = workspaces.filter(ws =>
-    ws.connectionType === 'local' && ws.path && !existsSync(ws.path)
-  )
-  if (invalidWorkspaces.length > 0) {
-    // Wait a bit for window to be ready, then notify
+  const invalidProjects: { workspaceId: string; projectPath: string }[] = []
+  for (const ws of workspaces) {
+    if (ws.connectionType !== 'local') continue
+    for (const proj of ws.projects) {
+      if (proj.path && !existsSync(proj.path)) {
+        invalidProjects.push({ workspaceId: ws.id, projectPath: proj.path })
+      }
+    }
+  }
+  if (invalidProjects.length > 0) {
     setTimeout(() => {
-      mainWindow?.webContents.send('workspace:path-invalid', invalidWorkspaces.map(w => w.id))
+      mainWindow?.webContents.send('workspace:path-invalid', invalidProjects)
     }, 2000)
   }
 
