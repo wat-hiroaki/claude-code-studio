@@ -12,6 +12,7 @@ interface SshSession {
   lastStatus: AgentStatus
   outputBuffer: string
   lastOutputLine: string
+  _idleTimer?: ReturnType<typeof setTimeout>
 }
 
 type SshDataCallback = (agentId: string, data: string) => void
@@ -188,6 +189,7 @@ export class SshSessionManager {
   stopSession(agentId: string): void {
     const session = this.sessions.get(agentId)
     if (!session) return
+    if (session._idleTimer) clearTimeout(session._idleTimer)
     // Detach from tmux first (so session persists on remote)
     if (session.channel) {
       try { session.channel.write('\x02d') } catch { /* channel closed */ } // Ctrl+B, d — tmux detach
@@ -217,41 +219,71 @@ export class SshSessionManager {
     return this.sessions.get(agentId)?.lastOutputLine ?? ''
   }
 
+  // Lines that are static status indicators, not meaningful output
+  private static readonly NOISE_PATTERNS = /^(\d+ tokens?|bypass permissions|medium|low|high|effort|shift\+tab)/i
+
   private detectStatus(session: SshSession, rawData: string): void {
     // Cap buffer at 2KB to prevent unbounded growth
     session.outputBuffer = (session.outputBuffer + rawData).slice(-2000)
     const recentClean = stripAnsiCodes(rawData)
-    const bufferClean = stripAnsiCodes(session.outputBuffer)
 
-    const lines = recentClean.split('\n').map((l) => l.trim()).filter((l) => l.length > 2)
-    if (lines.length > 0) {
-      session.lastOutputLine = lines[lines.length - 1].slice(0, 80)
+    // Filter noise lines (token counts, status bar fragments)
+    const meaningfulLines = recentClean.split('\n').map((l) => l.trim()).filter((l) => l.length > 2 && !SshSessionManager.NOISE_PATTERNS.test(l))
+
+    // Track last meaningful output line for sidebar preview
+    if (meaningfulLines.length > 0) {
+      session.lastOutputLine = meaningfulLines[meaningfulLines.length - 1].slice(0, 80)
     }
 
-    let newStatus: AgentStatus | null = null
+    // If the entire chunk is noise, don't change status at all
+    if (meaningfulLines.length === 0) return
 
-    if (/\b(Allow|Deny)\b/.test(recentClean) && /\b(yes|no|allow|deny)\b/i.test(recentClean)) {
-      newStatus = 'awaiting'
-    } else if (/⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏/.test(rawData) || /Thinking\.\.\./.test(recentClean)) {
-      newStatus = 'thinking'
-    } else if (/^ *(Read|Edit|Write|Bash|Glob|Grep|Agent|Skill)\b/.test(recentClean)) {
-      newStatus = 'tool_running'
-    } else if (/[❯>]\s*$/.test(bufferClean.split('\n').pop() ?? '')) {
-      newStatus = 'active'
+    // Session conflict
+    if (/already in use/i.test(recentClean)) {
+      this.setStatus(session, 'session_conflict')
+      return
     }
 
-    if (newStatus) {
-      this.setStatus(session, newStatus)
-
-      if (newStatus === 'tool_running') {
-        const toolMatch = recentClean.match(/^ *(Read|Edit|Write|Bash|Glob|Grep|Agent|Skill)\b/)
-        if (toolMatch) {
-          this.database.updateAgent(session.agentId, { currentTask: `Running ${toolMatch[1]}...` })
-        }
-      } else if (newStatus === 'active') {
-        this.database.updateAgent(session.agentId, { currentTask: null })
+    // Tool execution patterns — match anywhere in the chunk (no ^ anchor)
+    if (/(?:Read|Write|Edit|Search|Bash|MultiTool|ListDir|Grep|Glob|Agent|Skill)\(/.test(recentClean) ||
+        /\btool uses\b/i.test(recentClean) ||
+        /\+\d+ more tool uses/i.test(recentClean)) {
+      this.setStatus(session, 'tool_running')
+      const toolMatch = recentClean.match(/(?:Read|Write|Edit|Search|Bash|MultiTool|ListDir|Grep|Glob|Agent|Skill)\(/)
+      if (toolMatch) {
+        const toolName = toolMatch[0].replace('(', '')
+        this.database.updateAgent(session.agentId, { currentTask: `Running ${toolName}...` })
       }
     }
+    // Spinner characters = actively thinking
+    else if (/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(rawData) || /Thinking\.\.\./.test(recentClean)) {
+      this.setStatus(session, 'thinking')
+    }
+    // Awaiting user input (explicit permission prompts)
+    else if (/Do you want to/i.test(recentClean) ||
+             /\(y\/n\)/i.test(recentClean) ||
+             /Allow this action\?/i.test(recentClean) ||
+             (/\b(Allow|Deny)\b/.test(recentClean) && /\b(yes|no|allow|deny)\b/i.test(recentClean))) {
+      this.setStatus(session, 'awaiting')
+    }
+    // Error detection
+    else if (/^Error:/im.test(recentClean) ||
+             /APIError|NetworkError|RateLimitError/i.test(recentClean)) {
+      this.setStatus(session, 'error')
+    }
+
+    // Always schedule an idle reset — if output stops, go back to active
+    this.scheduleIdleReset(session)
+  }
+
+  private scheduleIdleReset(session: SshSession): void {
+    if (session._idleTimer) clearTimeout(session._idleTimer)
+    session._idleTimer = setTimeout(() => {
+      // If output has stopped for 2s, assume Claude is waiting for input
+      if (session.lastStatus !== 'active' && session.lastStatus !== 'session_conflict') {
+        this.setStatus(session, 'active')
+      }
+    }, 2000)
   }
 
   /** Unified status update — same pattern as PtySessionManager */
