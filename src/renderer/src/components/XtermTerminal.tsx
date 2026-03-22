@@ -138,6 +138,11 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
         })
         return false
       }
+      // Ctrl+Shift+K → clear terminal scrollback
+      if (e.ctrlKey && e.shiftKey && e.key === 'K') {
+        terminal.clear()
+        return false
+      }
       return true // let all other keys pass through to PTY
     })
 
@@ -171,6 +176,15 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
       }
     })
 
+    // Listen for clear event
+    const handleClear = (e: Event): void => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.agentId === agentId) {
+        terminal.clear()
+      }
+    }
+    document.addEventListener('xterm:clear', handleClear)
+
     // Observe container resize
     const resizeObserver = new ResizeObserver(() => {
       handleResize()
@@ -181,6 +195,7 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
       unsubData()
       unsubExit()
       resizeObserver.disconnect()
+      document.removeEventListener('xterm:clear', handleClear)
       terminal.element?.removeEventListener('contextmenu', contextMenuHandler)
       terminal.dispose()
       terminalRef.current = null

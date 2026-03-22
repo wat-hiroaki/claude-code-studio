@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { showToast } from './ToastContainer'
+import { useAppStore } from '@stores/useAppStore'
+import { showToast } from '@components/ToastContainer'
 import { X, Laptop, Server, Loader2, CheckCircle2, XCircle } from 'lucide-react'
-import { cn } from '../lib/utils'
-import { useOverlayClose } from '../lib/useOverlayClose'
+import { cn } from '@lib/utils'
+import { useOverlayClose } from '@lib/useOverlayClose'
 
 interface CreateWorkspaceDialogProps {
   onClose: () => void

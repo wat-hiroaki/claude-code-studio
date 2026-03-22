@@ -484,6 +484,45 @@ export interface ElectronAPI {
   // Window fullscreen
   toggleFullscreen: () => Promise<boolean>
   isFullscreen: () => Promise<boolean>
+
+  // Aurelius Memory
+  aureliusSaveSession: (params: { summary: string; project: string; decisions?: string[]; problemsSolved?: { problem: string; solution: string }[]; nextSteps?: string[]; keyFiles?: string[] }) => Promise<{ id: string }>
+  aureliusGetSessions: (project?: string, limit?: number) => Promise<AureliusSession[]>
+  aureliusSearch: (query: string, type?: string) => Promise<AureliusNode[]>
+  aureliusRecall: (topic: string) => Promise<AureliusNode[]>
+  aureliusAvailable: () => Promise<boolean>
+  aureliusStatus: (project?: string) => Promise<string>
+
+  // Plugins
+  pluginList: () => Promise<PluginInfo[]>
+  pluginToolbarButtons: () => Promise<PluginToolbarButton[]>
+  pluginContextTabs: () => Promise<PluginContextTab[]>
+  pluginCall: (pluginId: string, tool: string, args: Record<string, unknown>) => Promise<unknown>
+  pluginInstall: (pluginId: string) => Promise<void>
+}
+
+// Aurelius Memory types
+export interface AureliusSession {
+  id: string
+  label: string
+  note: string
+  data?: {
+    project?: string
+    decisions?: string[]
+    next_steps?: string[]
+    problems_solved?: { problem: string; solution: string }[]
+    key_files?: string[]
+  }
+  created_at: string
+}
+
+export interface AureliusNode {
+  id: string
+  label: string
+  type: string
+  note?: string
+  data?: Record<string, unknown>
+  created_at: string
 }
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'fatal'
@@ -567,6 +606,51 @@ export interface ConfigMapData {
   edges: ConfigEdge[]
   conflicts: ConfigConflict[]
   scannedAt: string
+}
+
+// Plugin System
+export interface PluginManifest {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: string
+  mcp: {
+    command: string
+    args: string[]
+    bundled?: boolean
+  }
+  tools: { name: string; label: string; icon: string }[]
+  ui: {
+    toolbarButtons: { id: string; tool: string; icon: string; prompt: string }[]
+    contextTab?: { id: string; label: string; icon: string; component: string }
+  }
+  install?: {
+    check: string
+    steps: string[]
+  }
+}
+
+export interface PluginInfo {
+  id: string
+  manifest: PluginManifest
+  status: 'installed' | 'not_installed' | 'running' | 'error'
+}
+
+export interface PluginToolbarButton {
+  pluginId: string
+  id: string
+  tool: string
+  icon: string
+  prompt: string
+}
+
+export interface PluginContextTab {
+  pluginId: string
+  id: string
+  label: string
+  icon: string
+  component: string
 }
 
 // Organization Overview: summary of each workspace's config

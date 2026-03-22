@@ -1,200 +1,24 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
-import { useAppStore } from './stores/useAppStore'
-import { cn } from './lib/utils'
-import { TitleBar } from './components/TitleBar'
-import { AgentList } from './components/AgentList'
-import { TerminalView } from './components/TerminalView'
-import { PtyTerminalView } from './components/PtyTerminalView'
-import { ContextPane } from './components/ContextPane'
-import { Dashboard } from './components/Dashboard'
-import { CreateAgentDialog } from './components/CreateAgentDialog'
-import { ToastContainer, showToast } from './components/ToastContainer'
-import { QuickSearch } from './components/QuickSearch'
-import { ShortcutHelp } from './components/ShortcutHelp'
-import { WelcomeScreen } from './components/WelcomeScreen'
-import { WorkspaceScanner } from './components/WorkspaceScanner'
-import { ErrorBoundary } from './components/ErrorBoundary'
-import { ResizeHandle } from './components/ResizeHandle'
-import { UpdateBanner } from './components/UpdateBanner'
+import { useAppStore } from '@stores/useAppStore'
+import { TitleBar } from '@components/TitleBar'
+import { AgentList } from '@components/agentList'
+import { ContextPane } from '@components/ContextPane'
+import { LayoutTree } from '@components/LayoutTree'
+import { DndProvider } from '@components/DndProvider'
+import { CreateAgentDialog } from '@components/CreateAgentDialog'
+import { ToastContainer, showToast } from '@components/ToastContainer'
+import { QuickSearch } from '@components/QuickSearch'
+import { ShortcutHelp } from '@components/ShortcutHelp'
+import { WelcomeScreen } from '@components/WelcomeScreen'
+import { WorkspaceScanner } from '@components/WorkspaceScanner'
+import { ErrorBoundary } from '@components/ErrorBoundary'
+import { ResizeHandle } from '@components/ResizeHandle'
+import { UpdateBanner } from '@components/UpdateBanner'
 
 import type { DiscoveredWorkspace } from '@shared/types'
 
-interface PaneGridProps {
-  onOpenScanner?: () => void
-}
-
-function PaneGrid({ onOpenScanner }: PaneGridProps): JSX.Element {
-  const { selectedAgentId, setSelectedAgent, paneLayout, paneAgentIds, setPaneAgent, swapPanes, agents, usePtyMode } = useAppStore()
-  const { t } = useTranslation()
-
-  // For single pane, use selectedAgentId directly
-  // For multi-pane: only auto-assign when user explicitly clicks an agent in sidebar
-  // (not on every selectedAgentId change — that causes closed panes to reappear)
-
-  // Dashboard always renders full width regardless of pane layout
-  if (!selectedAgentId) {
-    return (
-      <div className="flex-1 min-w-0 overflow-hidden h-full">
-        <Dashboard fullHeight onOpenScanner={onOpenScanner} />
-      </div>
-    )
-  }
-
-  if (paneLayout === 1) {
-    return (
-      <div className="flex-1 min-w-0 overflow-hidden h-full">
-        {usePtyMode
-          ? <PtyTerminalView agentId={selectedAgentId} />
-          : <TerminalView agentId={selectedAgentId} />}
-      </div>
-    )
-  }
-
-  const renderPane = (i: number): JSX.Element => {
-    const agentId = paneAgentIds[i]
-    if (!agentId) {
-      // Filter out agents already assigned to other panes (prevent duplicates)
-      const assignedIds = new Set(paneAgentIds.filter((id, idx) => id && idx !== i))
-      const available = agents.filter((a) => a.status !== 'archived' && !assignedIds.has(a.id))
-      return (
-        <div className="flex flex-col h-full items-center justify-center bg-card text-muted-foreground gap-2">
-          <p className="text-xs">{t('pane.label', 'Pane')} {i + 1}</p>
-          <div className="flex flex-wrap gap-1 max-w-[240px] justify-center">
-            {available.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground/50">No available agents</p>
-            ) : (
-              available.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => setPaneAgent(i, a.id)}
-                  className="text-[10px] px-2 py-1 rounded bg-secondary hover:bg-accent transition-colors flex flex-col items-center"
-                  title={a.workspaceId || undefined}
-                >
-                  <span>{a.name}</span>
-                  {a.workspaceId && (
-                    <span className="text-[8px] text-muted-foreground/60">
-                      {a.workspaceId.split('/').pop()}
-                    </span>
-                  )}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )
-    }
-
-    // Pane toolbar: swap buttons + close
-    const maxPane = paneLayout === 4 ? 3 : 1
-    const agentName = agents.find(a => a.id === agentId)?.name || ''
-    const paneToolbar = (
-      <div className="flex items-center justify-between px-2 py-0.5 bg-card/80 border-b border-border/40">
-        <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]">
-          {t('pane.label', 'Pane')} {i + 1}{agentName ? ` · ${agentName}` : ''}
-        </span>
-        <div className="flex items-center gap-0.5">
-          {/* Swap with other panes */}
-          {Array.from({ length: maxPane + 1 }, (_, j) => j).filter(j => j !== i && paneAgentIds[j]).map(j => (
-            <button
-              key={`swap-${j}`}
-              onClick={() => swapPanes(i, j)}
-              className="text-[9px] px-1.5 py-0.5 rounded hover:bg-accent text-muted-foreground transition-colors"
-              title={t('pane.swapWith', 'Swap with Pane {{n}}', { n: j + 1 })}
-            >
-              ⇄{j + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setPaneAgent(i, null)}
-            className="text-[10px] px-1.5 py-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors ml-1"
-            title={t('common.close', 'Close')}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-    )
-
-    return (
-      <div
-        className={cn(
-          'flex flex-col h-full overflow-hidden transition-[box-shadow] duration-150',
-          paneLayout > 1 && selectedAgentId === agentId
-            ? 'ring-1 ring-primary/40'
-            : ''
-        )}
-        onMouseEnter={() => {
-          if (paneLayout > 1 && agentId && selectedAgentId !== agentId) {
-            setSelectedAgent(agentId, false)
-          }
-        }}
-      >
-        {paneToolbar}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          {usePtyMode ? (
-            <PtyTerminalView
-              key={`${i}-${agentId}`}
-              agentId={agentId}
-              compact={paneLayout === 4}
-            />
-          ) : (
-            <TerminalView
-              key={`${i}-${agentId}`}
-              agentId={agentId}
-              compact={paneLayout === 4}
-              onClose={() => setPaneAgent(i, null)}
-            />
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  if (paneLayout === 2) {
-    return (
-      <Group orientation="horizontal" className="flex-1 overflow-hidden">
-        <Panel defaultSize="50%" minSize={150}>
-          {renderPane(0)}
-        </Panel>
-        <ResizeHandle />
-        <Panel defaultSize="50%" minSize={150}>
-          {renderPane(1)}
-        </Panel>
-      </Group>
-    )
-  }
-
-  // 4-pane layout
-  return (
-    <Group orientation="vertical" className="flex-1 overflow-hidden">
-      <Panel defaultSize="50%" minSize={100}>
-        <Group orientation="horizontal">
-          <Panel defaultSize="50%" minSize={150}>
-            {renderPane(0)}
-          </Panel>
-          <ResizeHandle />
-          <Panel defaultSize="50%" minSize={150}>
-            {renderPane(1)}
-          </Panel>
-        </Group>
-      </Panel>
-      <ResizeHandle direction="vertical" />
-      <Panel defaultSize="50%" minSize={100}>
-        <Group orientation="horizontal">
-          <Panel defaultSize="50%" minSize={150}>
-            {renderPane(2)}
-          </Panel>
-          <ResizeHandle />
-          <Panel defaultSize="50%" minSize={150}>
-            {renderPane(3)}
-          </Panel>
-        </Group>
-      </Panel>
-    </Group>
-  )
-}
 
 interface MainLayoutProps {
   showRightPane: boolean
@@ -232,7 +56,7 @@ function MainLayout({ showRightPane, onOpenScanner }: MainLayoutProps): JSX.Elem
       <ResizeHandle />
       <Panel id="terminal" minSize={300}>
         <ErrorBoundary fallbackMessage="Terminal failed to render">
-          <PaneGrid onOpenScanner={onOpenScanner} />
+          <LayoutTree onOpenScanner={onOpenScanner} />
         </ErrorBoundary>
       </Panel>
       {showRightPane && (
@@ -464,7 +288,9 @@ export function App(): JSX.Element {
         {agents.length === 0 ? (
           <WelcomeScreen onCreateAgent={() => setShowCreateDialog(true)} onOpenScanner={() => setShowWorkspaceScanner(true)} />
         ) : (
-          <MainLayout showRightPane={showRightPane} onOpenScanner={() => setShowWorkspaceScanner(true)} />
+          <DndProvider>
+            <MainLayout showRightPane={showRightPane} onOpenScanner={() => setShowWorkspaceScanner(true)} />
+          </DndProvider>
         )}
       </div>
 

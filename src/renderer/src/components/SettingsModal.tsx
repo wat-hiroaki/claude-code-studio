@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@stores/useAppStore'
 import { X, Moon, Sun, Monitor, Globe, Bell, Terminal, Database, FolderOpen, Settings2 } from 'lucide-react'
-import { showToast } from './ToastContainer'
-import { useOverlayClose } from '../lib/useOverlayClose'
-import { cn } from '../lib/utils'
-import { ConfigPanel } from './ConfigPanel'
-import { DiagnosticsPanel } from './DiagnosticsPanel'
+import { showToast } from '@components/ToastContainer'
+import { useOverlayClose } from '@lib/useOverlayClose'
+import { cn } from '@lib/utils'
+import { ConfigPanel } from '@components/ConfigPanel'
+import { DiagnosticsPanel } from '@components/DiagnosticsPanel'
 
 interface SettingsModalProps {
   onClose: () => void

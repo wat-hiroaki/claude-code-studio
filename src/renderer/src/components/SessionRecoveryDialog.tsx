@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { RefreshCw, Link, Search, Folder, Clock, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useOverlayClose } from '@/lib/useOverlayClose'
-import { showToast } from './ToastContainer'
+import { showToast } from '@components/ToastContainer'
 import type { CliSessionInfo } from '@shared/types'
 
 interface SessionRecoveryDialogProps {

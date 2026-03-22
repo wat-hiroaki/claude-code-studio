@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@stores/useAppStore'
 import { X, FolderOpen, Server, Upload, ChevronDown, ChevronRight } from 'lucide-react'
-import { showToast } from './ToastContainer'
-import { useOverlayClose } from '../lib/useOverlayClose'
+import { showToast } from '@components/ToastContainer'
+import { useOverlayClose } from '@lib/useOverlayClose'
 import type { DiscoveredWorkspace, Workspace } from '@shared/types'
 
 interface CreateAgentDialogProps {

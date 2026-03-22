@@ -1,0 +1,37 @@
+{
+  "id": "aurelius",
+  "name": "Aurelius Memory",
+  "version": "1.2.0",
+  "description": "Knowledge graph memory for cross-session context",
+  "author": "Blysspeak",
+  "mcp": {
+    "command": "au",
+    "args": ["mcp"],
+    "bundled": false
+  },
+  "tools": [
+    { "name": "memory_status", "label": "Recall", "icon": "book-open" },
+    { "name": "memory_session", "label": "Save", "icon": "save" },
+    { "name": "memory_search", "label": "Search", "icon": "search" },
+    { "name": "memory_recall", "label": "Recall Topic", "icon": "brain" }
+  ],
+  "ui": {
+    "toolbarButtons": [
+      { "id": "aurelius-save", "tool": "memory_session", "icon": "save", "prompt": "сохрани сессию в память проекта \"{project}\", вызови memory_session" },
+      { "id": "aurelius-restore", "tool": "memory_status", "icon": "book-open", "prompt": "вспомни контекст проекта \"{project}\", вызови memory_status" }
+    ],
+    "contextTab": {
+      "id": "memory",
+      "label": "Memory",
+      "icon": "brain",
+      "component": "MemoryPanel"
+    }
+  },
+  "install": {
+    "check": "au --version",
+    "steps": [
+      "git clone https://github.com/Blysspeak/aurelius /tmp/aurelius-install",
+      "cd /tmp/aurelius-install && ./install.sh"
+    ]
+  }
+}

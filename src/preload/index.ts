@@ -237,6 +237,21 @@ const api: ElectronAPI = {
   toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
   isFullscreen: () => ipcRenderer.invoke('window:isFullscreen'),
 
+  // Aurelius Memory
+  aureliusSaveSession: (params) => ipcRenderer.invoke('aurelius:saveSession', params),
+  aureliusGetSessions: (project, limit) => ipcRenderer.invoke('aurelius:getSessions', project, limit),
+  aureliusSearch: (query, type) => ipcRenderer.invoke('aurelius:search', query, type),
+  aureliusRecall: (topic) => ipcRenderer.invoke('aurelius:recall', topic),
+  aureliusAvailable: () => ipcRenderer.invoke('aurelius:available'),
+  aureliusStatus: (project) => ipcRenderer.invoke('aurelius:status', project),
+
+  // Plugins
+  pluginList: () => ipcRenderer.invoke('plugin:list'),
+  pluginToolbarButtons: () => ipcRenderer.invoke('plugin:toolbar-buttons'),
+  pluginContextTabs: () => ipcRenderer.invoke('plugin:context-tabs'),
+  pluginCall: (pluginId, tool, args) => ipcRenderer.invoke('plugin:call', pluginId, tool, args),
+  pluginInstall: (pluginId) => ipcRenderer.invoke('plugin:install', pluginId),
+
   // Workspace path events
   onWorkspacePathInvalid: (callback: (invalid: { workspaceId: string; projectPath: string }[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, invalid: { workspaceId: string; projectPath: string }[]): void => {

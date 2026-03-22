@@ -5,7 +5,7 @@ import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import type { Agent, AgentStatus } from '@shared/types'
 import type { Database } from './database'
-import { validateProjectPath } from './session-manager'
+import { validateProjectPath } from './sessionManager'
 import { stripAnsiCodes } from './utils'
 
 interface PtySession {

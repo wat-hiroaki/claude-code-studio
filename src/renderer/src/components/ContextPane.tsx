@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { getInitials } from '../lib/status'
-import { FolderOpen, Clock, Cpu, Link, Inbox, User, FileText, RotateCw, Square, AlertCircle, Globe } from 'lucide-react'
-import { showToast } from './ToastContainer'
-import { TaskChainPanel } from './TaskChainPanel'
-import { InboxPanel } from './InboxPanel'
-import { AgentProfileView } from './AgentProfileView'
-import { BrowserPanel } from './BrowserPanel'
+import { useAppStore } from '@stores/useAppStore'
+import { getInitials } from '@lib/status'
+import { FolderOpen, Clock, Cpu, Link, Inbox, User, FileText, RotateCw, Square, AlertCircle, Globe, Brain } from 'lucide-react'
+import { showToast } from '@components/ToastContainer'
+import { TaskChainPanel } from '@components/TaskChainPanel'
+import { InboxPanel } from '@components/InboxPanel'
+import { AgentProfileView } from '@components/AgentProfileView'
+import { BrowserPanel } from '@components/BrowserPanel'
+import { MemoryPanel } from '@components/MemoryPanel'
+import type { PluginContextTab as PluginTab } from '@shared/types'
 
-type ContextTab = 'details' | 'profile' | 'inbox' | 'chains' | 'browser'
+type ContextTab = 'details' | 'profile' | 'inbox' | 'chains' | 'browser' | string
 
 export function ContextPane(): JSX.Element {
   const { t } = useTranslation()
@@ -17,6 +19,13 @@ export function ContextPane(): JSX.Element {
   const [activeTab, setActiveTab] = useState<ContextTab>('details')
 
   const agent = agents.find((a) => a.id === selectedAgentId)
+  const [pluginTabs, setPluginTabs] = useState<PluginTab[]>([])
+
+  useEffect(() => {
+    window.api.pluginContextTabs().then(setPluginTabs).catch(() => {})
+  }, [])
+
+  const PLUGIN_ICON_MAP: Record<string, typeof Brain> = { brain: Brain, globe: Globe }
 
   const tabClass = (tab: ContextTab): string =>
     `flex-1 px-3 py-2 text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
@@ -46,6 +55,15 @@ export function ContextPane(): JSX.Element {
         <Globe size={12} />
         {t('contextPane.browser', 'Browser')}
       </button>
+      {pluginTabs.map(pt => {
+        const Icon = PLUGIN_ICON_MAP[pt.icon] || Brain
+        return (
+          <button key={pt.id} onClick={() => setActiveTab(pt.id)} className={tabClass(pt.id)}>
+            <Icon size={12} />
+            {pt.label}
+          </button>
+        )
+      })}
     </div>
   )
 
@@ -82,6 +100,19 @@ export function ContextPane(): JSX.Element {
       <div className="h-full border-l border-border bg-card flex flex-col overflow-hidden">
         {renderTabs()}
         <TaskChainPanel />
+      </div>
+    )
+  }
+
+  // Plugin tabs (e.g. Memory from Aurelius)
+  const activePluginTab = pluginTabs.find(pt => pt.id === activeTab)
+  if (activePluginTab) {
+    return (
+      <div className="h-full border-l border-border bg-card flex flex-col overflow-hidden">
+        {renderTabs()}
+        {activePluginTab.component === 'MemoryPanel' ? <MemoryPanel /> : (
+          <div className="p-4 text-sm text-muted-foreground">Plugin: {activePluginTab.label}</div>
+        )}
       </div>
     )
   }

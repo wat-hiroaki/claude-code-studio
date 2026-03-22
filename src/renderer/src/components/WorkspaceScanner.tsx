@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Search, FolderOpen, FileText, FolderCog, Users, Package, ChevronRight, Loader2, HardDrive, Globe, Monitor } from 'lucide-react'
-import { cn } from '../lib/utils'
-import { useOverlayClose } from '../lib/useOverlayClose'
+import { cn } from '@lib/utils'
+import { useOverlayClose } from '@lib/useOverlayClose'
 import type { DiscoveredWorkspace } from '@shared/types'
 
 interface WorkspaceScannerProps {

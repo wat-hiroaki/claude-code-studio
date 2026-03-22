@@ -1,5 +1,5 @@
 import { Separator } from 'react-resizable-panels'
-import { cn } from '../lib/utils'
+import { cn } from '@lib/utils'
 
 interface ResizeHandleProps {
   direction?: 'horizontal' | 'vertical'

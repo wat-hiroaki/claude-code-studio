@@ -11,7 +11,12 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/renderer/src/*"],
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@components/*": ["./src/renderer/src/components/*"],
+      "@stores/*": ["./src/renderer/src/stores/*"],
+      "@lib/*": ["./src/renderer/src/lib/*"],
+      "@hooks/*": ["./src/renderer/src/hooks/*"],
+      "@appTypes/*": ["./src/renderer/src/types/*"]
     }
   }
 }

@@ -1,5 +1,16 @@
 import { create } from 'zustand'
 import type { Agent, Message, TeamStats, Task, PromptTemplate, AgentTeamsData } from '@shared/types'
+import type { LayoutNode, DropPosition } from '@appTypes/layout'
+import {
+  DEFAULT_LAYOUT,
+  splitLeaf,
+  removeLeaf as removeLeafFromTree,
+  setLeafAgent as setLeafAgentInTree,
+  getAllAgentIds,
+  getAllLeaves,
+  findNode,
+  dropToSplit
+} from '@appTypes/layout'
 
 interface AppState {
   // Agents
@@ -44,12 +55,14 @@ interface AppState {
   toggleDashboard: () => void
   setDashboardActiveView: (view: AppState['dashboardActiveView']) => void
 
-  // Layout
-  paneLayout: 1 | 2 | 4
-  paneAgentIds: (string | null)[]
-  setPaneLayout: (layout: 1 | 2 | 4) => void
-  setPaneAgent: (paneIndex: number, agentId: string | null) => void
-  swapPanes: (a: number, b: number) => void
+  // Layout (tree-based split layout)
+  layoutTree: LayoutNode
+  setLayoutTree: (tree: LayoutNode) => void
+  splitPane: (leafId: string, direction: 'horizontal' | 'vertical', agentId: string, position: 'before' | 'after') => void
+  setLeafAgent: (leafId: string, agentId: string | null) => void
+  removeLeaf: (leafId: string) => void
+  moveAgent: (fromLeafId: string, toLeafId: string, position: DropPosition) => void
+  resetLayout: () => void
 
   // Workspace
   activeWorkspaceId: string | null
@@ -95,21 +108,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedAgentId: null,
   setAgents: (agents) => set({ agents }),
   setSelectedAgent: (id, assignToPane = true) => set((s) => {
-    if (s.paneLayout > 1) {
+    const leaves = getAllLeaves(s.layoutTree)
+    const hasMultiplePanes = leaves.length > 1
+    const assignedIds = getAllAgentIds(s.layoutTree)
+
+    if (hasMultiplePanes) {
       if (id === null) {
-        const newPaneAgentIds = [...s.paneAgentIds]
-        newPaneAgentIds[0] = null
-        return { selectedAgentId: null, showDashboard: true, paneAgentIds: newPaneAgentIds }
+        return { selectedAgentId: null, showDashboard: true }
       }
       // Only assign to a pane if explicitly requested (sidebar click, not hover)
-      if (assignToPane && !s.paneAgentIds.includes(id)) {
-        const newPaneAgentIds = [...s.paneAgentIds]
-        const emptyIdx = newPaneAgentIds.findIndex((pid) => !pid)
-        const targetIdx = emptyIdx !== -1 ? emptyIdx : 0
-        newPaneAgentIds[targetIdx] = id
-        return { selectedAgentId: id, showDashboard: false, paneAgentIds: newPaneAgentIds }
+      if (assignToPane && !assignedIds.includes(id)) {
+        // Find first empty leaf
+        const emptyLeaf = leaves.find(l => !l.agentId)
+        if (emptyLeaf) {
+          return {
+            selectedAgentId: id,
+            showDashboard: false,
+            layoutTree: setLeafAgentInTree(s.layoutTree, emptyLeaf.id, id)
+          }
+        }
+        // No empty leaf — replace the first leaf
+        return {
+          selectedAgentId: id,
+          showDashboard: false,
+          layoutTree: setLeafAgentInTree(s.layoutTree, leaves[0].id, id)
+        }
       }
       return { selectedAgentId: id, showDashboard: false }
+    }
+    // Single pane — assign to root leaf if clicking from sidebar
+    if (id && assignToPane && leaves.length === 1 && leaves[0].agentId !== id) {
+      return {
+        selectedAgentId: id,
+        showDashboard: false,
+        layoutTree: setLeafAgentInTree(s.layoutTree, leaves[0].id, id)
+      }
     }
     return { selectedAgentId: id, showDashboard: id === null }
   }),
@@ -168,53 +201,80 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleBroadcast: () => set((s) => ({ showBroadcast: !s.showBroadcast })),
   setDashboardActiveView: (view) => set({ dashboardActiveView: view }),
   toggleDashboard: () => set((s) => {
-    if (s.paneLayout > 1) {
-      // Multi-pane: toggle dashboard in pane 0
-      const currentPane0 = s.paneAgentIds[0]
-      if (currentPane0) {
-        // Pane 0 has an agent → clear it to show dashboard
-        const newPaneAgentIds = [...s.paneAgentIds]
-        newPaneAgentIds[0] = null
-        return { selectedAgentId: null, showDashboard: true, paneAgentIds: newPaneAgentIds }
-      }
-      // Pane 0 is already dashboard → select first agent
-      const firstAgent = s.agents.find(a => a.status !== 'archived')
-      if (firstAgent) {
-        const newPaneAgentIds = [...s.paneAgentIds]
-        newPaneAgentIds[0] = firstAgent.id
-        return { selectedAgentId: firstAgent.id, showDashboard: false, paneAgentIds: newPaneAgentIds }
-      }
-      return {}
-    }
     if (s.selectedAgentId) {
-      // Currently viewing an agent → switch to dashboard
       return { selectedAgentId: null, showDashboard: true }
     }
-    // Already on dashboard → stay (or select first agent if available)
     const firstAgent = s.agents.find(a => a.status !== 'archived')
     return firstAgent
       ? { selectedAgentId: firstAgent.id, showDashboard: false }
       : {}
   }),
 
-  // Layout
-  paneLayout: 1,
-  paneAgentIds: [null, null, null, null],
-  setPaneLayout: (layout) => set({ paneLayout: layout }),
-  setPaneAgent: (paneIndex, agentId) =>
-    set((state) => {
-      const ids = [...state.paneAgentIds]
-      ids[paneIndex] = agentId
-      return { paneAgentIds: ids }
-    }),
-  swapPanes: (a, b) =>
-    set((state) => {
-      const ids = [...state.paneAgentIds]
-      const tmp = ids[a]
-      ids[a] = ids[b]
-      ids[b] = tmp
-      return { paneAgentIds: ids }
-    }),
+  // Layout (tree-based split layout)
+  layoutTree: (() => {
+    try {
+      const saved = localStorage.getItem('layoutTree')
+      if (saved) return JSON.parse(saved) as LayoutNode
+    } catch { /* ignore */ }
+    return { ...DEFAULT_LAYOUT }
+  })(),
+  setLayoutTree: (tree) => {
+    localStorage.setItem('layoutTree', JSON.stringify(tree))
+    set({ layoutTree: tree })
+  },
+  splitPane: (leafId, direction, agentId, position) => set((s) => {
+    const newTree = splitLeaf(s.layoutTree, leafId, direction, agentId, position)
+    localStorage.setItem('layoutTree', JSON.stringify(newTree))
+    return { layoutTree: newTree, selectedAgentId: agentId, showDashboard: false }
+  }),
+  setLeafAgent: (leafId, agentId) => set((s) => {
+    const newTree = setLeafAgentInTree(s.layoutTree, leafId, agentId)
+    localStorage.setItem('layoutTree', JSON.stringify(newTree))
+    return {
+      layoutTree: newTree,
+      ...(agentId ? { selectedAgentId: agentId, showDashboard: false } : {})
+    }
+  }),
+  removeLeaf: (leafId) => set((s) => {
+    const newTree = removeLeafFromTree(s.layoutTree, leafId)
+    localStorage.setItem('layoutTree', JSON.stringify(newTree))
+    // Select another agent if available
+    const remaining = getAllAgentIds(newTree)
+    return {
+      layoutTree: newTree,
+      selectedAgentId: remaining.length > 0 ? remaining[0] : null,
+      showDashboard: remaining.length === 0
+    }
+  }),
+  moveAgent: (fromLeafId, toLeafId, position) => set((s) => {
+    const fromNode = findNode(s.layoutTree, fromLeafId)
+    if (!fromNode || fromNode.type !== 'leaf' || !fromNode.agentId) return {}
+
+    const agentId = fromNode.agentId
+    const splitInfo = dropToSplit(position)
+
+    if (splitInfo) {
+      // Remove from source first
+      let tree = removeLeafFromTree(s.layoutTree, fromLeafId)
+      // Then split the target
+      tree = splitLeaf(tree, toLeafId, splitInfo.direction, agentId, splitInfo.position)
+      localStorage.setItem('layoutTree', JSON.stringify(tree))
+      return { layoutTree: tree, selectedAgentId: agentId }
+    } else {
+      // Center drop — swap agents
+      const toNode = findNode(s.layoutTree, toLeafId)
+      if (!toNode || toNode.type !== 'leaf') return {}
+      let tree = setLeafAgentInTree(s.layoutTree, fromLeafId, toNode.agentId)
+      tree = setLeafAgentInTree(tree, toLeafId, agentId)
+      localStorage.setItem('layoutTree', JSON.stringify(tree))
+      return { layoutTree: tree, selectedAgentId: agentId }
+    }
+  }),
+  resetLayout: () => {
+    const tree = { ...DEFAULT_LAYOUT }
+    localStorage.setItem('layoutTree', JSON.stringify(tree))
+    set({ layoutTree: tree, selectedAgentId: null, showDashboard: true })
+  },
 
   // Workspace
   activeWorkspaceId: null,

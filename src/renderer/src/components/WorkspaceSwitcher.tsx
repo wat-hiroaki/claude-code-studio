@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
 import { ChevronDown, ChevronRight, Plus, Laptop, Server, Pencil, Trash2, Check, X, AlertTriangle, FolderOpen } from 'lucide-react'
-import { CreateWorkspaceDialog } from './CreateWorkspaceDialog'
-import { showToast } from './ToastContainer'
+import { CreateWorkspaceDialog } from '@components/CreateWorkspaceDialog'
+import { showToast } from '@components/ToastContainer'
 import type { Workspace } from '@shared/types'
 
 const COLORS = ['#748ffc', '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444']

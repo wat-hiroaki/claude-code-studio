@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
-import { getStatusDot, getInitials } from '../lib/status'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
+import { getStatusDot, getInitials } from '@lib/status'
 import { Sparkles, Plus } from 'lucide-react'
 import type { ClaudeSkillEntry } from '@shared/types'
 

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { showToast } from './ToastContainer'
-import { cn } from '../lib/utils'
-import { getStatusBadge } from '../lib/status'
+import { useAppStore } from '@stores/useAppStore'
+import { showToast } from '@components/ToastContainer'
+import { cn } from '@lib/utils'
+import { getStatusBadge } from '@lib/status'
 import {
   Send,
   RotateCw,
@@ -20,7 +20,7 @@ import {
   Zap,
   Brain
 } from 'lucide-react'
-import { ChangedFilesPanel } from './ChangedFilesPanel'
+import { ChangedFilesPanel } from '@components/ChangedFilesPanel'
 import type { Message, Workspace } from '@shared/types'
 
 // ---------------------------------------------------------------------------

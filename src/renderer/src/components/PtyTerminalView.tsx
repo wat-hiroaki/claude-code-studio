@@ -1,13 +1,13 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { showToast } from './ToastContainer'
-import { cn } from '../lib/utils'
-import { getStatusBadge } from '../lib/status'
-import { RotateCw, Square, Terminal, AlertCircle, Pin, PinOff, Server, Link } from 'lucide-react'
-import { XtermTerminal } from './XtermTerminal'
-import { TerminalToolbar } from './TerminalToolbar'
-import { SessionRecoveryDialog } from './SessionRecoveryDialog'
+import { useAppStore } from '@stores/useAppStore'
+import { showToast } from '@components/ToastContainer'
+import { cn } from '@lib/utils'
+import { getStatusBadge } from '@lib/status'
+import { RotateCw, Square, Terminal, AlertCircle, Pin, PinOff, Server, Link, Eraser } from 'lucide-react'
+import { XtermTerminal } from '@components/XtermTerminal'
+import { TerminalToolbar } from '@components/TerminalToolbar'
+import { SessionRecoveryDialog } from '@components/SessionRecoveryDialog'
 import type { Agent, Workspace } from '@shared/types'
 
 interface PtyTerminalViewProps {
@@ -44,6 +44,10 @@ function AgentHeader({ agent, compact, workspace, onRecoverSession }: { agent: A
       showToast(t('toast.interruptFailed', 'Interrupt failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }), 'error')
     }
   }, [agent.id, t])
+
+  const handleClear = useCallback(() => {
+    document.dispatchEvent(new CustomEvent('xterm:clear', { detail: { agentId: agent.id } }))
+  }, [agent.id])
 
   const togglePin = useCallback(async () => {
     await window.api.updateAgent(agent.id, { isPinned: !agent.isPinned })
@@ -88,6 +92,13 @@ function AgentHeader({ agent, compact, workspace, onRecoverSession }: { agent: A
         )}
       </div>
       <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={handleClear}
+          className="p-1 rounded hover:bg-muted/50 text-muted-foreground/60 hover:text-foreground transition-colors"
+          title={t('terminal.clear', 'Clear terminal')}
+        >
+          <Eraser size={12} />
+        </button>
         <button
           onClick={onRecoverSession}
           className="p-1 rounded hover:bg-muted/50 text-muted-foreground/60 hover:text-cyan-400 transition-colors"
