@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
 import {
   Link,
   Plus,
@@ -13,7 +13,7 @@ import {
   X,
   Clock
 } from 'lucide-react'
-import { ChainExecutionHistory } from './ChainExecutionHistory'
+import { ChainExecutionHistory } from '@components/ChainExecutionHistory'
 import type { TaskChain } from '@shared/types'
 
 type TriggerConditionType = 'complete' | 'keyword' | 'no_error' | 'scheduled'

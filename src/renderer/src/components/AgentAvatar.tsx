@@ -1,5 +1,5 @@
-import { cn } from '../lib/utils'
-import { getInitials } from '../lib/status'
+import { cn } from '@lib/utils'
+import { getInitials } from '@lib/status'
 import type { Agent } from '@shared/types'
 
 interface AgentAvatarProps {

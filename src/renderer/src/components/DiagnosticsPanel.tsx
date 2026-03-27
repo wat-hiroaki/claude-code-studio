@@ -8,7 +8,7 @@ import {
   Shield,
   ShieldOff
 } from 'lucide-react'
-import { cn } from '../lib/utils'
+import { cn } from '@lib/utils'
 import type { DiagnosticLog, DiagnosticStats } from '@shared/types'
 
 const LEVEL_COLORS: Record<string, string> = {

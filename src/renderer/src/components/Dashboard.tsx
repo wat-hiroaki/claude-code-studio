@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@stores/useAppStore'
 import {
   Users, AlertCircle, XCircle, CheckCircle2,
   GitBranch, HardDrive, Brain, Radar, Map as MapIcon
 } from 'lucide-react'
-import { cn } from '../lib/utils'
-import { ActivityMap } from './ActivityMap'
-import { ChainGraph } from './ChainGraph'
-import { ActivityStream } from './ActivityStream'
+import { cn } from '@lib/utils'
+import { ActivityMap } from '@components/activityMap'
+import { ChainGraph } from '@components/ChainGraph'
+import { ActivityStream } from '@components/ActivityStream'
 // ScheduledTasksPanel merged into ChainGraph
 import type { Team, Workspace } from '@shared/types'
 
-const LazyConfigMap = lazy(() => import('./ConfigMap').then(m => ({ default: m.ConfigMap })))
+const LazyConfigMap = lazy(() => import('@components/configMap').then(m => ({ default: m.ConfigMap })))
 
 type DashboardView = 'activityMap' | 'chainGraph' | 'scheduler' | 'configMap'
 

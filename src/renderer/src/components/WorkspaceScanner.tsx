@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Search, FolderOpen, FileText, FolderCog, Users, Package, ChevronRight, Loader2, HardDrive, Globe, Monitor } from 'lucide-react'
-import { cn } from '../lib/utils'
+import { cn } from '@lib/utils'
+import { useOverlayClose } from '@lib/useOverlayClose'
 import type { DiscoveredWorkspace } from '@shared/types'
 
 interface WorkspaceScannerProps {
@@ -11,6 +12,7 @@ interface WorkspaceScannerProps {
 
 export function WorkspaceScanner({ onClose, onCreateAgent }: WorkspaceScannerProps): JSX.Element {
   const { t } = useTranslation()
+  const overlay = useOverlayClose(onClose)
   const [workspaces, setWorkspaces] = useState<DiscoveredWorkspace[]>([])
   const [scanning, setScanning] = useState(false)
   const [scanned, setScanned] = useState(false)
@@ -100,7 +102,7 @@ export function WorkspaceScanner({ onClose, onCreateAgent }: WorkspaceScannerPro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onMouseDown={overlay.onMouseDown} onClick={overlay.onClick} role="dialog" aria-modal="true">
       <div className="bg-card border border-border rounded-xl w-[640px] max-h-[80vh] overflow-hidden shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">

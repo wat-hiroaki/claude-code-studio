@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
 import { GitBranch, Plus, X } from 'lucide-react'
-import { TaskChainPanel } from './TaskChainPanel'
+import { TaskChainPanel } from '@components/TaskChainPanel'
 import type { TaskChain, ChainExecutionLog } from '@shared/types'
 
 // ---------------------------------------------------------

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
-import { getInitials } from '../lib/status'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
+import { getInitials } from '@lib/status'
 import { useMemo } from 'react'
 import type { Agent, AgentStatus } from '@shared/types'
 

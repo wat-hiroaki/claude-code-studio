@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
 import { ChevronDown, ChevronRight, Plus, Laptop, Server, Pencil, Trash2, Check, X, AlertTriangle, FolderOpen } from 'lucide-react'
-import { CreateWorkspaceDialog } from './CreateWorkspaceDialog'
-import { showToast } from './ToastContainer'
+import { CreateWorkspaceDialog } from '@components/CreateWorkspaceDialog'
+import { showToast } from '@components/ToastContainer'
 import type { Workspace } from '@shared/types'
 
 const COLORS = ['#748ffc', '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444']
@@ -90,7 +90,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
 
   const handleDelete = async (ws: Workspace, e: React.MouseEvent): Promise<void> => {
     e.stopPropagation()
-    if (!confirm(t('workspace.confirmDelete', 'Delete workspace "{{name}}"? Agents will remain but become unassigned.', { name: ws.name }))) return
+    const confirmed = await window.api.confirm(t('workspace.confirmDelete', 'Delete workspace "{{name}}"? Agents will remain but become unassigned.', { name: ws.name }))
+    if (!confirmed) return
     try {
       await window.api.deleteWorkspace(ws.id)
       if (activeWorkspaceId === ws.id) {
@@ -130,7 +131,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps): JSX.El
 
   const handleRemoveProject = async (ws: Workspace, projectPath: string, projectName: string, e: React.MouseEvent): Promise<void> => {
     e.stopPropagation()
-    if (!confirm(t('workspace.confirmRemoveProject', 'Remove "{{name}}" from workspace?', { name: projectName }))) return
+    const confirmed = await window.api.confirm(t('workspace.confirmRemoveProject', 'Remove "{{name}}" from workspace?', { name: projectName }))
+    if (!confirmed) return
     try {
       await window.api.removeProjectFromWorkspace(ws.id, projectPath)
       await loadWorkspaces()

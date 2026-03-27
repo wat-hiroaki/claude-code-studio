@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@stores/useAppStore'
 import type { Agent } from '@shared/types'
-import { cn } from '../lib/utils'
-import { getStatusDot, getInitials } from '../lib/status'
+import { cn } from '@lib/utils'
+import { getStatusDot, getInitials } from '@lib/status'
 import { Search, Plus, LayoutDashboard, Radio, PanelRight, Zap, Link } from 'lucide-react'
 
 interface CommandItem {

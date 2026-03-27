@@ -10,7 +10,8 @@
     "composite": true,
     "types": ["electron-vite/node"],
     "paths": {
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@main/*": ["./src/main/*"]
     }
   }
 }

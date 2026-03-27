@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RefreshCw, Link, Search, Folder, Clock, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { showToast } from './ToastContainer'
+import { useOverlayClose } from '@/lib/useOverlayClose'
+import { showToast } from '@components/ToastContainer'
 import type { CliSessionInfo } from '@shared/types'
 
 interface SessionRecoveryDialogProps {
@@ -14,6 +15,7 @@ interface SessionRecoveryDialogProps {
 
 export function SessionRecoveryDialog({ agentId, projectPath, onClose, onAttached }: SessionRecoveryDialogProps): JSX.Element {
   const { t } = useTranslation()
+  const overlay = useOverlayClose(onClose)
   const [sessions, setSessions] = useState<CliSessionInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
@@ -77,7 +79,7 @@ export function SessionRecoveryDialog({ agentId, projectPath, onClose, onAttache
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={overlay.onMouseDown} onClick={overlay.onClick}>
       <div className="bg-card border border-border rounded-xl w-[560px] max-h-[70vh] shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">

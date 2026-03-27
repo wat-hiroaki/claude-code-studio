@@ -9,6 +9,7 @@ const api: ElectronAPI = {
   updateAgent: (id, updates) => ipcRenderer.invoke('agent:update', id, updates),
   archiveAgent: (id) => ipcRenderer.invoke('agent:archive', id),
   unarchiveAgent: (id) => ipcRenderer.invoke('agent:unarchive', id),
+  deleteAgent: (id) => ipcRenderer.invoke('agent:delete', id),
 
   // Messaging
   sendMessage: (agentId, content) => ipcRenderer.invoke('message:send', agentId, content),
@@ -61,7 +62,11 @@ const api: ElectronAPI = {
     return () => ipcRenderer.removeListener('chain:event', handler)
   },
 
+  // Filesystem
+  listDirs: (partial: string) => ipcRenderer.invoke('fs:listDirs', partial),
+
   // Dialog
+  confirm: (message: string, title?: string) => ipcRenderer.invoke('dialog:confirm', message, title),
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
   selectFile: (filters?: { name: string; extensions: string[] }[]) => ipcRenderer.invoke('dialog:selectFile', filters),
 
@@ -80,6 +85,13 @@ const api: ElectronAPI = {
     }
     ipcRenderer.on('agent:output', handler)
     return () => ipcRenderer.removeListener('agent:output', handler)
+  },
+  onAgentDeleted: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, agentId: string): void => {
+      callback(agentId)
+    }
+    ipcRenderer.on('agent:deleted', handler)
+    return () => ipcRenderer.removeListener('agent:deleted', handler)
   },
   onAgentStatusChange: (callback) => {
     const VALID_STATUSES = ['creating', 'active', 'thinking', 'tool_running', 'awaiting', 'error', 'session_conflict', 'idle', 'archived']
@@ -224,6 +236,21 @@ const api: ElectronAPI = {
   // Window fullscreen
   toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
   isFullscreen: () => ipcRenderer.invoke('window:isFullscreen'),
+
+  // Aurelius Memory
+  aureliusSaveSession: (params) => ipcRenderer.invoke('aurelius:saveSession', params),
+  aureliusGetSessions: (project, limit) => ipcRenderer.invoke('aurelius:getSessions', project, limit),
+  aureliusSearch: (query, type) => ipcRenderer.invoke('aurelius:search', query, type),
+  aureliusRecall: (topic) => ipcRenderer.invoke('aurelius:recall', topic),
+  aureliusAvailable: () => ipcRenderer.invoke('aurelius:available'),
+  aureliusStatus: (project) => ipcRenderer.invoke('aurelius:status', project),
+
+  // Plugins
+  pluginList: () => ipcRenderer.invoke('plugin:list'),
+  pluginToolbarButtons: () => ipcRenderer.invoke('plugin:toolbar-buttons'),
+  pluginContextTabs: () => ipcRenderer.invoke('plugin:context-tabs'),
+  pluginCall: (pluginId, tool, args) => ipcRenderer.invoke('plugin:call', pluginId, tool, args),
+  pluginInstall: (pluginId) => ipcRenderer.invoke('plugin:install', pluginId),
 
   // Workspace path events
   onWorkspacePathInvalid: (callback: (invalid: { workspaceId: string; projectPath: string }[]) => void) => {

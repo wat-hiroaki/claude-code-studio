@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
 import { FileEdit, FilePlus, FileSearch, ChevronDown, ChevronRight, Files } from 'lucide-react'
 
 type FileAction = 'M' | 'A' | 'R'
