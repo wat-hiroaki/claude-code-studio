@@ -435,7 +435,9 @@
   "sidebar": {
     "inbox": "Inbox",
     "workspaces": "Workspaces",
-    "attention": "{{count}} needs attention"
+    "attention": "{{count}} needs attention",
+    "collapse": "Collapse sidebar (Ctrl+B)",
+    "expand": "Expand sidebar (Ctrl+B)"
   },
   "common": {
     "create": "Create",

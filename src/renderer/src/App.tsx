@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
+import { Group, Panel, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useAppStore } from '@stores/useAppStore'
 import { TitleBar } from '@components/TitleBar'
 import { AgentList } from '@components/agentList'
@@ -23,9 +24,13 @@ import type { DiscoveredWorkspace } from '@shared/types'
 interface MainLayoutProps {
   showRightPane: boolean
   onOpenScanner?: () => void
+  sidebarRef: ReturnType<typeof usePanelRef>
+  sidebarCollapsed: boolean
+  onSidebarCollapse: (collapsed: boolean) => void
 }
 
-function MainLayout({ showRightPane, onOpenScanner }: MainLayoutProps): JSX.Element {
+function MainLayout({ showRightPane, onOpenScanner, sidebarRef, sidebarCollapsed, onSidebarCollapse }: MainLayoutProps): JSX.Element {
+  const { t } = useTranslation()
   const panelIds = showRightPane
     ? ['sidebar', 'terminal', 'context']
     : ['sidebar', 'terminal']
@@ -34,6 +39,16 @@ function MainLayout({ showRightPane, onOpenScanner }: MainLayoutProps): JSX.Elem
     id: `main-layout-${showRightPane ? '3' : '2'}`,
     panelIds,
   })
+
+  const toggleSidebar = useCallback(() => {
+    const panel = sidebarRef.current
+    if (!panel) return
+    if (panel.isCollapsed) {
+      panel.expand()
+    } else {
+      panel.collapse()
+    }
+  }, [sidebarRef])
 
   return (
     <Group
@@ -48,6 +63,10 @@ function MainLayout({ showRightPane, onOpenScanner }: MainLayoutProps): JSX.Elem
         maxSize={350}
         collapsible
         collapsedSize={0}
+        panelRef={sidebarRef}
+        onResize={(size) => {
+          onSidebarCollapse(size === 0)
+        }}
       >
         <ErrorBoundary fallbackMessage="Sidebar failed to render">
           <AgentList />
@@ -55,9 +74,19 @@ function MainLayout({ showRightPane, onOpenScanner }: MainLayoutProps): JSX.Elem
       </Panel>
       <ResizeHandle />
       <Panel id="terminal" minSize={300}>
-        <ErrorBoundary fallbackMessage="Terminal failed to render">
-          <LayoutTree onOpenScanner={onOpenScanner} />
-        </ErrorBoundary>
+        <div className="relative h-full">
+          {/* Sidebar toggle button */}
+          <button
+            onClick={toggleSidebar}
+            className="absolute top-1 left-1 z-10 p-1 rounded hover:bg-accent text-muted-foreground transition-colors opacity-60 hover:opacity-100"
+            title={t(sidebarCollapsed ? 'sidebar.expand' : 'sidebar.collapse')}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+          <ErrorBoundary fallbackMessage="Terminal failed to render">
+            <LayoutTree onOpenScanner={onOpenScanner} />
+          </ErrorBoundary>
+        </div>
       </Panel>
       {showRightPane && (
         <>
@@ -90,6 +119,8 @@ export function App(): JSX.Element {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showWorkspaceScanner, setShowWorkspaceScanner] = useState(false)
   const [prefillWorkspace, setPrefillWorkspace] = useState<DiscoveredWorkspace | null>(null)
+  const sidebarRef = usePanelRef()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // Listen for QuickSearch new-agent command
   useEffect(() => {
@@ -214,6 +245,14 @@ export function App(): JSX.Element {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
+      if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
+        e.preventDefault()
+        const panel = sidebarRef.current
+        if (panel) {
+          if (panel.isCollapsed) panel.expand()
+          else panel.collapse()
+        }
+      }
       if (e.ctrlKey && !e.shiftKey && e.key === 'd') {
         e.preventDefault()
         setSelectedAgent(null)
@@ -289,7 +328,13 @@ export function App(): JSX.Element {
           <WelcomeScreen onCreateAgent={() => setShowCreateDialog(true)} onOpenScanner={() => setShowWorkspaceScanner(true)} />
         ) : (
           <DndProvider>
-            <MainLayout showRightPane={showRightPane} onOpenScanner={() => setShowWorkspaceScanner(true)} />
+            <MainLayout
+              showRightPane={showRightPane}
+              onOpenScanner={() => setShowWorkspaceScanner(true)}
+              sidebarRef={sidebarRef}
+              sidebarCollapsed={sidebarCollapsed}
+              onSidebarCollapse={setSidebarCollapsed}
+            />
           </DndProvider>
         )}
       </div>

@@ -435,7 +435,9 @@
   "sidebar": {
     "inbox": "受信箱",
     "workspaces": "ワークスペース",
-    "attention": "{{count}}件の対応が必要"
+    "attention": "{{count}}件の対応が必要",
+    "collapse": "サイドバーを折りたたむ (Ctrl+B)",
+    "expand": "サイドバーを展開 (Ctrl+B)"
   },
   "common": {
     "create": "作成",
