@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@stores/useAppStore'
 import { X, FolderOpen, Server, Upload, ChevronDown, ChevronRight } from 'lucide-react'
-import { showToast } from './ToastContainer'
+import { showToast } from '@components/ToastContainer'
+import { useOverlayClose } from '@lib/useOverlayClose'
 import type { DiscoveredWorkspace, Workspace } from '@shared/types'
 
 interface CreateAgentDialogProps {
@@ -13,6 +14,7 @@ interface CreateAgentDialogProps {
 
 export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdProp }: CreateAgentDialogProps): JSX.Element {
   const { t } = useTranslation()
+  const overlay = useOverlayClose(onClose)
   const { agents, addAgent, setSelectedAgent } = useAppStore()
   const [name, setName] = useState(prefill?.name || '')
   const [projectPath, setProjectPath] = useState(prefill?.path || '')
@@ -25,6 +27,13 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
   const [error, setError] = useState<string | null>(null)
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [pathSuggestions, setPathSuggestions] = useState<{ name: string; path: string }[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedSuggestion, setSelectedSuggestion] = useState(-1)
+  const pathInputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const [portalPos, setPortalPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 })
   const activeAgents = agents.filter((a) => a.status !== 'archived')
 
   // Load active workspace info and auto-fill path
@@ -63,6 +72,90 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
+
+  const fetchSuggestions = useCallback((value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!value || value.length < 2) {
+      setPathSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      const dirs = await window.api.listDirs(value)
+      setPathSuggestions(dirs)
+      setShowSuggestions(dirs.length > 0)
+      setSelectedSuggestion(-1)
+      // Compute portal position from input
+      if (pathInputRef.current && dirs.length > 0) {
+        const rect = pathInputRef.current.getBoundingClientRect()
+        setPortalPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+      }
+    }, 150)
+  }, [])
+
+  const handlePathChange = (value: string): void => {
+    setProjectPath(value)
+    fetchSuggestions(value)
+  }
+
+  const applySuggestion = (suggestion: { name: string; path: string }): void => {
+    setProjectPath(suggestion.path)
+    setShowSuggestions(false)
+    if (!projectName.trim()) {
+      setProjectName(suggestion.name)
+    }
+    if (!name.trim()) {
+      setName(`${suggestion.name} Dev`)
+    }
+    // Continue suggesting deeper paths
+    fetchSuggestions(suggestion.path + '/')
+    pathInputRef.current?.focus()
+  }
+
+  const handlePathKeyDown = (e: React.KeyboardEvent): void => {
+    if (!showSuggestions || pathSuggestions.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedSuggestion((prev) => Math.min(prev + 1, pathSuggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedSuggestion((prev) => Math.max(prev - 1, -1))
+    } else if (e.key === 'Tab' || e.key === 'Enter') {
+      if (selectedSuggestion >= 0) {
+        e.preventDefault()
+        applySuggestion(pathSuggestions[selectedSuggestion])
+      } else if (e.key === 'Tab' && pathSuggestions.length === 1) {
+        e.preventDefault()
+        applySuggestion(pathSuggestions[0])
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+    }
+  }
+
+  // Update portal position on scroll/resize and close on outside click
+  useEffect(() => {
+    const updatePos = (): void => {
+      if (pathInputRef.current && showSuggestions) {
+        const rect = pathInputRef.current.getBoundingClientRect()
+        setPortalPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+      }
+    }
+    const handleClick = (e: MouseEvent): void => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
+          pathInputRef.current && !pathInputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
+    }
+  }, [showSuggestions])
 
   const handleSelectFolder = async (): Promise<void> => {
     const folder = await window.api.selectFolder()
@@ -109,8 +202,8 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="bg-card border border-border rounded-xl w-[480px] max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onMouseDown={overlay.onMouseDown} onClick={overlay.onClick} role="dialog" aria-modal="true">
+      <div className="bg-card border border-border rounded-xl w-[480px] max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">{t('agent.new')}</h3>
           <div className="flex items-center gap-1">
@@ -195,13 +288,20 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
               </select>
             )}
             <div className="flex gap-2 mt-1">
-              <input
-                type="text"
-                value={projectPath}
-                onChange={(e) => setProjectPath(e.target.value)}
-                placeholder={activeWorkspace?.connectionType === 'ssh' ? '/home/user/my-project' : 'C:/Users/user/my-project'}
-                className="flex-1 px-3 py-2 bg-secondary rounded-lg text-sm outline-none"
-              />
+              <div className="relative flex-1">
+                <input
+                  ref={pathInputRef}
+                  type="text"
+                  value={projectPath}
+                  onChange={(e) => handlePathChange(e.target.value)}
+                  onKeyDown={handlePathKeyDown}
+                  onFocus={() => { if (projectPath.length >= 2) fetchSuggestions(projectPath) }}
+                  placeholder={activeWorkspace?.connectionType === 'ssh' ? '/home/user/project' : '~/workSpace/project'}
+                  className="w-full px-3 py-2 bg-secondary rounded-lg text-sm outline-none"
+                  autoComplete="off"
+                />
+{/* Portal rendered at dialog root level */}
+              </div>
               <button
                 onClick={handleSelectFolder}
                 className="px-3 py-2 bg-secondary rounded-lg hover:bg-accent transition-colors"
@@ -306,6 +406,37 @@ export function CreateAgentDialog({ onClose, prefill, workspaceId: workspaceIdPr
           </button>
         </div>
       </div>
+
+      {/* Path suggestions dropdown — rendered outside dialog card to avoid clipping */}
+      {showSuggestions && pathSuggestions.length > 0 && (
+        <div
+          ref={suggestionsRef}
+          style={{
+            position: 'fixed',
+            top: portalPos.top,
+            left: portalPos.left,
+            width: portalPos.width
+          }}
+          className="bg-card rounded-lg shadow-2xl max-h-[240px] overflow-y-auto border border-border"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {pathSuggestions.map((s, i) => (
+            <button
+              key={s.path}
+              onClick={() => applySuggestion(s)}
+              onMouseEnter={() => setSelectedSuggestion(i)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-colors ${
+                i === selectedSuggestion ? 'bg-accent' : 'hover:bg-accent/50'
+              }`}
+            >
+              <FolderOpen size={13} className="text-blue-400 shrink-0" />
+              <span className="font-medium truncate">{s.name}</span>
+              <span className="text-muted-foreground/60 truncate ml-auto text-[10px] font-mono">{s.path}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

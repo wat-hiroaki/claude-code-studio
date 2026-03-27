@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
 import {
   Activity,
   CheckCircle2,

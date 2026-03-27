@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@stores/useAppStore'
 
 export const cyberPaletteDark = {
   bg: '#09090b',
@@ -16,6 +16,8 @@ export const cyberPaletteDark = {
   panelBg: 'rgba(9, 9, 11, 0.9)',
   panelBorder: 'rgba(82, 82, 91, 0.5)'
 }
+
+export type CyberPalette = typeof cyberPaletteDark
 
 export const cyberPaletteLight = {
   bg: '#f8fafc',

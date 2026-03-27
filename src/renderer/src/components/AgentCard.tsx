@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Agent } from '@shared/types'
-import { useAppStore } from '../stores/useAppStore'
-import { cn } from '../lib/utils'
-import { getStatusDot, getInitials } from '../lib/status'
+import { useAppStore } from '@stores/useAppStore'
+import { cn } from '@lib/utils'
+import { getStatusDot, getInitials } from '@lib/status'
 import { Pin, PinOff, RotateCw, Archive } from 'lucide-react'
 
 interface AgentCardProps {

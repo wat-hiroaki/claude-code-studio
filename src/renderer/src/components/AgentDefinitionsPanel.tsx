@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Trash2, BookTemplate } from 'lucide-react'
-import { cn } from '../lib/utils'
-import { AgentAvatar } from './AgentAvatar'
-import { showToast } from './ToastContainer'
+import { cn } from '@lib/utils'
+import { AgentAvatar } from '@components/AgentAvatar'
+import { showToast } from '@components/ToastContainer'
 import type { AgentDefinition } from '@shared/types'
 
 export function AgentDefinitionsPanel(): JSX.Element {

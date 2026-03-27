@@ -1,27 +1,20 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { SettingsModal } from './SettingsModal'
-import { cn } from '../lib/utils'
+import { useAppStore } from '@stores/useAppStore'
+import { SettingsModal } from '@components/SettingsModal'
 import {
   LayoutDashboard,
   PanelRight,
   Settings,
-  Square,
-  Columns2,
-  LayoutGrid
+  RotateCcw
 } from 'lucide-react'
+import { countLeaves } from '@appTypes/layout'
 
 export function TitleBar(): JSX.Element {
   const { t } = useTranslation()
-  const { toggleDashboard, toggleRightPane, showDashboard, paneLayout, setPaneLayout, teamStats } = useAppStore()
+  const { toggleDashboard, toggleRightPane, showDashboard, resetLayout, layoutTree, teamStats } = useAppStore()
   const [showSettings, setShowSettings] = useState(false)
-
-  const layoutOptions: { layout: 1 | 2 | 4; icon: typeof Square; label: string }[] = [
-    { layout: 1, icon: Square, label: '1' },
-    { layout: 2, icon: Columns2, label: '2' },
-    { layout: 4, icon: LayoutGrid, label: '4' }
-  ]
+  const leafCount = countLeaves(layoutTree)
 
   return (
     <>
@@ -43,24 +36,17 @@ export function TitleBar(): JSX.Element {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Layout switcher */}
-          <div className="flex items-center bg-secondary rounded p-0.5 mr-1">
-            {layoutOptions.map(({ layout, icon: Icon, label }) => (
-              <button
-                key={layout}
-                onClick={() => setPaneLayout(layout)}
-                className={cn(
-                  'p-1 rounded transition-colors',
-                  paneLayout === layout
-                    ? 'bg-card shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                title={`${label} panel${layout > 1 ? 's' : ''}`}
-              >
-                <Icon size={12} />
-              </button>
-            ))}
-          </div>
+          {/* Pane count indicator + reset */}
+          {leafCount > 1 && (
+            <button
+              onClick={resetLayout}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors mr-1"
+              title={t('titleBar.resetLayout', 'Reset layout')}
+            >
+              <RotateCcw size={10} />
+              <span>{leafCount} panes</span>
+            </button>
+          )}
 
           <button
             onClick={toggleDashboard}

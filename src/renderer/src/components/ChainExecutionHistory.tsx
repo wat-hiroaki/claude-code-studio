@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '../lib/utils'
+import { cn } from '@lib/utils'
 import { Clock, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import type { ChainExecutionLog } from '@shared/types'
 

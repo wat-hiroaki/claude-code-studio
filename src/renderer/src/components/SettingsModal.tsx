@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@stores/useAppStore'
 import { X, Moon, Sun, Monitor, Globe, Bell, Terminal, Database, FolderOpen, Settings2 } from 'lucide-react'
-import { showToast } from './ToastContainer'
-import { cn } from '../lib/utils'
-import { ConfigPanel } from './ConfigPanel'
-import { DiagnosticsPanel } from './DiagnosticsPanel'
+import { showToast } from '@components/ToastContainer'
+import { useOverlayClose } from '@lib/useOverlayClose'
+import { cn } from '@lib/utils'
+import { ConfigPanel } from '@components/ConfigPanel'
+import { DiagnosticsPanel } from '@components/DiagnosticsPanel'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -13,6 +14,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
   const { t, i18n } = useTranslation()
+  const overlay = useOverlayClose(onClose)
   const { theme, setTheme, usePtyMode, setUsePtyMode, terminalFontSize, setTerminalFontSize } = useAppStore()
   const [appVersion, setAppVersion] = useState('')
 
@@ -66,8 +68,8 @@ export function SettingsModal({ onClose }: SettingsModalProps): JSX.Element {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="bg-card border border-border rounded-xl w-[560px] max-h-[80vh] overflow-hidden shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onMouseDown={overlay.onMouseDown} onClick={overlay.onClick} role="dialog" aria-modal="true">
+      <div className="bg-card border border-border rounded-xl w-[560px] max-h-[80vh] overflow-hidden shadow-xl">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">{t('settings.title')}</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-accent">

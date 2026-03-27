@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { cn } from '../lib/utils'
+import { cn } from '@lib/utils'
 
 // Curated emoji set for agent icons — grouped by theme
 const emojiGroups: { label: string; emojis: string[] }[] = [

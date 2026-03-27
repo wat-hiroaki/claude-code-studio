@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CyberPalette } from '@lib/cyber-theme'
 import type { ConfigNode } from '@shared/types'
 
 interface ConfigMapNodeProps {
@@ -10,22 +11,6 @@ interface ConfigMapNodeProps {
   isSelected: boolean
   onClick: (node: ConfigNode) => void
   onHoverChange?: (node: ConfigNode | null) => void
-}
-
-interface CyberPalette {
-  bg: string
-  accent: string
-  cyan: string
-  green: string
-  orange: string
-  red: string
-  purple: string
-  gray: string
-  darkGray: string
-  textMain: string
-  textMuted: string
-  panelBg: string
-  panelBorder: string
 }
 
 const CATEGORY_COLORS: Record<string, (p: CyberPalette) => string> = {

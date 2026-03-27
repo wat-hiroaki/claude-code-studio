@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppStore } from '../stores/useAppStore'
-import { showToast } from './ToastContainer'
+import { useAppStore } from '@stores/useAppStore'
+import { showToast } from '@components/ToastContainer'
 import { X, Laptop, Server, Loader2, CheckCircle2, XCircle } from 'lucide-react'
-import { cn } from '../lib/utils'
+import { cn } from '@lib/utils'
+import { useOverlayClose } from '@lib/useOverlayClose'
 
 interface CreateWorkspaceDialogProps {
   onClose: () => void
@@ -13,6 +14,7 @@ const COLORS = ['#748ffc', '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'
 
 export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): JSX.Element {
   const { t } = useTranslation()
+  const overlay = useOverlayClose(onClose)
   const { setActiveWorkspaceId } = useAppStore()
   const [name, setName] = useState('')
   const [color, setColor] = useState('#748ffc')
@@ -86,7 +88,7 @@ export function CreateWorkspaceDialog({ onClose }: CreateWorkspaceDialogProps): 
   const canCreate = name.trim() && (connectionType === 'local' || (sshHost && sshUsername))
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onMouseDown={overlay.onMouseDown} onClick={overlay.onClick} role="dialog" aria-modal="true">
       <div className="bg-card border border-border rounded-xl w-[520px] max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">{t('workspace.create')}</h3>

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Minus, Maximize } from 'lucide-react'
-import { useAppStore } from '../stores/useAppStore'
-import { cyberPaletteDark, cyberPaletteLight, useResolvedTheme } from '../lib/cyber-theme'
+import { useAppStore } from '@stores/useAppStore'
+import { cyberPaletteDark, cyberPaletteLight, useResolvedTheme } from '@lib/cyber-theme'
 import type { WorkspaceConfigSummary, Workspace } from '@shared/types'
 
 // Layout: arrange workspace nodes in a ring around a center point
