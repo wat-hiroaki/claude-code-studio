@@ -3,6 +3,7 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import type { Database } from '@main/database'
 import { t } from '@main/i18n'
+import { isAppQuitting, setAppQuitting } from '@main/appLifecycle'
 
 function createTrayIcon(): Electron.NativeImage {
   const size = 16
@@ -94,7 +95,7 @@ export function createWindow(database: Database): BrowserWindow {
 
   // Minimize to tray instead of closing
   mainWindow.on('close', (e) => {
-    if (!(app as any).isQuitting) {
+    if (!isAppQuitting()) {
       e.preventDefault()
       mainWindow?.hide()
     }
@@ -144,7 +145,7 @@ export function updateTrayMenu(
     {
       label: t('tray.quit'),
       click: () => {
-        ;(app as any).isQuitting = true
+        setAppQuitting(true)
         app.quit()
       }
     }

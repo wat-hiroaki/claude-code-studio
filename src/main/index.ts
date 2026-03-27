@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
+import type { AgentStatus } from '@shared/types'
 
 // Fix Chromium/GTK warnings on Linux (driver-level, not fixable via packages)
 if (process.platform === 'linux') {
@@ -68,7 +69,7 @@ function getAgentWorkspace(agentId: string): import('@shared/types').Workspace |
 
 function handleStatusChangeWithNotification(agentId: string, status: string): void {
   mainWindow?.webContents.send('agent:status-change', agentId, status)
-  chainOrchestrator?.handleStatusChange(agentId, status as any)
+  chainOrchestrator?.handleStatusChange(agentId, status as AgentStatus)
   if (tray) updateTrayMenu(tray, database, getMainWindow)
 
   const prev = prevAgentStatus.get(agentId)

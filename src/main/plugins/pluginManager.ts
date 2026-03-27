@@ -87,9 +87,10 @@ export class PluginManager {
     const localBin = join(homedir(), '.local', 'bin', cmd)
     if (existsSync(localBin)) return true
 
-    // Check PATH
+    // Check PATH (cross-platform)
     try {
-      execFileSync('which', [cmd], { timeout: 2000, stdio: 'pipe' })
+      const whichCmd = process.platform === 'win32' ? 'where' : 'which'
+      execFileSync(whichCmd, [cmd], { timeout: 2000, stdio: 'pipe' })
       return true
     } catch {
       return false

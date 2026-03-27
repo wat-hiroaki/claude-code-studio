@@ -61,6 +61,7 @@ export function updateAgent(db: DatabaseInternals, id: string, updates: Record<s
   const allowedFields = ['name', 'icon', 'roleLabel', 'status', 'currentTask', 'systemPrompt', 'claudeSessionId', 'isPinned', 'skills', 'teamId', 'reportTo']
   for (const [key, value] of Object.entries(updates)) {
     if (allowedFields.includes(key)) {
+      // eslint-disable-next-line no-extra-semi
       ;(agent as unknown as Record<string, unknown>)[key] = value
     }
   }

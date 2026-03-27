@@ -10,5 +10,4 @@ Thumbs.db
 .env.*.local
 *.sqlite
 *.sqlite3
-CLAUDE.md
 bun.lock

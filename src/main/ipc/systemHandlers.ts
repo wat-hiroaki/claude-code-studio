@@ -184,13 +184,13 @@ export function registerSystemHandlers(deps: SystemHandlerDeps): void {
     getDiagnostics()?.clearLogs()
   })
 
-  ipcMain.handle('diagnostics:setEnabled', (_event, enabled: boolean) => {
+  ipcMain.handle('diagnostics:setEnabled', async (_event, enabled: boolean) => {
     const diagnostics = getDiagnostics()
     if (diagnostics) {
       diagnostics.setEnabled(enabled)
     } else {
-      const { DiagnosticsEngine } = require('@main/diagnostics')
-      setDiagnostics(new DiagnosticsEngine(enabled))
+      const diagnosticsModule = await import('@main/diagnostics')
+      setDiagnostics(new diagnosticsModule.DiagnosticsEngine(enabled))
     }
     database.updateSettings({ diagnosticsEnabled: enabled } as unknown as Partial<import('@shared/types').AppSettings>)
   })
@@ -269,8 +269,8 @@ export function registerSystemHandlers(deps: SystemHandlerDeps): void {
   setAgentTeamsTimer(teamsTimer)
 
   // Update install
-  ipcMain.handle('update:install', () => {
-    const { autoUpdater } = require('electron-updater')
-    autoUpdater.quitAndInstall(false, true)
+  ipcMain.handle('update:install', async () => {
+    const updater = await import('electron-updater')
+    updater.autoUpdater.quitAndInstall(false, true)
   })
 }

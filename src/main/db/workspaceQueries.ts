@@ -39,6 +39,7 @@ export function updateWorkspace(db: DatabaseInternals, id: string, updates: Part
   const allowedFields = ['name', 'path', 'color', 'connectionType', 'sshConfig', 'configStorageLocation', 'isActive', 'projects']
   for (const [key, value] of Object.entries(updates)) {
     if (allowedFields.includes(key)) {
+      // eslint-disable-next-line no-extra-semi
       ;(ws as unknown as Record<string, unknown>)[key] = value
     }
   }

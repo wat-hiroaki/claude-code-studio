@@ -27,6 +27,7 @@ export function updateTemplate(db: DatabaseInternals, id: string, updates: Parti
   const allowedFields = ['label', 'value', 'category']
   for (const [key, value] of Object.entries(updates)) {
     if (allowedFields.includes(key)) {
+      // eslint-disable-next-line no-extra-semi
       ;(tmpl as unknown as Record<string, unknown>)[key] = value
     }
   }

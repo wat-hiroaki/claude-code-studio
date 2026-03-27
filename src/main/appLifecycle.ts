@@ -6,6 +6,16 @@ import type { ChainScheduler } from '@main/scheduler'
 import type { Database } from '@main/database'
 import type { PluginManager } from '@main/plugins/pluginManager'
 
+let _isQuitting = false
+
+export function isAppQuitting(): boolean {
+  return _isQuitting
+}
+
+export function setAppQuitting(value: boolean): void {
+  _isQuitting = value
+}
+
 interface LifecycleDeps {
   sessionManager: SessionManager
   ptySessionManager: PtySessionManager
@@ -27,7 +37,7 @@ export function setupAppLifecycle(deps: LifecycleDeps): void {
   })
 
   app.on('before-quit', () => {
-    ;(app as any).isQuitting = true
+    setAppQuitting(true)
     const memTimer = deps.getMemoryMonitorTimer()
     if (memTimer) clearInterval(memTimer)
     const teamsTimer = deps.getAgentTeamsTimer()
