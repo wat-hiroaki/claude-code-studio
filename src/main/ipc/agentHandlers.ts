@@ -330,8 +330,8 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     if (typeof agentId !== 'string') throw new Error('Invalid agent ID')
     const agent = database.getAgent(agentId)
     if (!agent) throw new Error(`Agent ${agentId} not found`)
-    const config = await import('@main/config')
-    return config.readAgentProfile(agent.projectPath)
+    const { readAgentProfile } = await import('@main/config')
+    return readAgentProfile(agent.projectPath)
   })
 
   ipcMain.handle('agent:readFile', async (_event, filePath: string) => {
@@ -339,8 +339,8 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     if (!/\.(md|json|yml|yaml|txt)$/i.test(filePath)) {
       throw new Error('Only text/config files can be read')
     }
-    const config = await import('@main/config')
-    return config.readFileContent(filePath)
+    const { readFileContent } = await import('@main/config')
+    return readFileContent(filePath)
   })
 
   // Agent templates (export/import)

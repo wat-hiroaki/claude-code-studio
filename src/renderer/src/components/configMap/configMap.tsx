@@ -90,7 +90,7 @@ export function ConfigMap({ workspaces }: ConfigMapProps): JSX.Element {
   )
 }
 
-function ViewModeTabs({ viewMode, setViewMode, palette }: {
+function ViewModeTabs({ viewMode, setViewMode, palette: _palette }: {
   viewMode: string; setViewMode: (v: 'overview' | 'detail') => void; palette: { panelBg: string }
 }): JSX.Element {
   const { t } = useTranslation()

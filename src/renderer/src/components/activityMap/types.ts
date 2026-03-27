@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import type { AgentStatus, Team, Agent, Workspace, ClaudeTaskSession } from '@shared/types'
+import type { AgentStatus, Team, Agent, Workspace } from '@shared/types'
 import { cyberPaletteDark as sharedDark, cyberPaletteLight as sharedLight, useResolvedTheme } from '@lib/cyber-theme'
 
 // ---------------------------------------------------------

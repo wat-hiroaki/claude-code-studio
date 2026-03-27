@@ -5,6 +5,7 @@ import type { SshSessionManager } from '@main/sshSessionManager'
 import type { ChainScheduler } from '@main/scheduler'
 import type { Database } from '@main/database'
 import type { PluginManager } from '@main/plugins/pluginManager'
+import { setAppQuitting } from '@main/appState'
 
 let _isQuitting = false
 

@@ -17,3 +17,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>
 )
+
+// Linux: force repaint when window regains visibility after desktop switch
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    document.body.style.display = 'none'
+    void document.body.offsetHeight
+    document.body.style.display = ''
+  }
+})

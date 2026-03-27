@@ -6,7 +6,7 @@ import { spawn, execFileSync } from 'child_process'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
-import { app } from 'electron'
+import { app, dialog, BrowserWindow } from 'electron'
 import type {
   PluginManifest,
   PluginInfo,
@@ -189,6 +189,16 @@ export class PluginManager {
     tool: string,
     args: Record<string, unknown>
   ): Promise<unknown> {
+    const entry = this.plugins.get(pluginId)
+    if (!entry) {
+      throw new Error(`Unknown plugin: ${pluginId}`)
+    }
+
+    const declaredTools = entry.manifest.tools.map((t) => t.name)
+    if (!declaredTools.includes(tool)) {
+      throw new Error(`Tool "${tool}" is not declared by plugin "${pluginId}". Available: ${declaredTools.join(', ')}`)
+    }
+
     const conn = this.connections.get(pluginId)
     if (!conn || !conn.process.stdin) {
       throw new Error(`Plugin ${pluginId} is not running`)
@@ -273,17 +283,39 @@ export class PluginManager {
     return tabs
   }
 
-  /** Install a plugin by running its manifest.install.steps */
+  /** Install a plugin by running its manifest.install.steps with user confirmation */
   async install(pluginId: string): Promise<void> {
     const entry = this.plugins.get(pluginId)
     if (!entry) throw new Error(`Plugin not found: ${pluginId}`)
     if (!entry.manifest.install) throw new Error(`Plugin ${pluginId} has no install steps`)
 
+    const steps = entry.manifest.install.steps
+
+    // Show commands to user and require explicit approval
+    const options: Electron.MessageBoxOptions = {
+      type: 'warning',
+      title: `Install plugin: ${entry.manifest.name}`,
+      message: `Plugin "${entry.manifest.name}" wants to run the following commands:`,
+      detail: steps.map((s, i) => `${i + 1}. ${s}`).join('\n'),
+      buttons: ['Cancel', 'Install'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true
+    }
+    const parentWindow = BrowserWindow.getFocusedWindow()
+    const { response } = parentWindow
+      ? await dialog.showMessageBox(parentWindow, options)
+      : await dialog.showMessageBox(options)
+
+    if (response !== 1) {
+      throw new Error('Plugin installation cancelled by user')
+    }
+
     const { execFile } = await import('child_process')
     const { promisify } = await import('util')
     const execFileAsync = promisify(execFile)
 
-    for (const step of entry.manifest.install.steps) {
+    for (const step of steps) {
       await execFileAsync('bash', ['-c', step], { timeout: 120000 })
     }
 

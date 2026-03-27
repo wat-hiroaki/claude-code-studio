@@ -62,7 +62,7 @@ export class SessionManager {
   private onOutput: OutputCallback
   private onStatusChange: StatusCallback
   private database: Database
-  private claudePath: string
+  readonly claudePath: string
 
   constructor(database: Database, onOutput: OutputCallback, onStatusChange: StatusCallback) {
     this.database = database

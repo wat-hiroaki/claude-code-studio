@@ -14,7 +14,7 @@ interface ConfigMapToolbarProps {
 }
 
 export function ConfigMapToolbar({
-  viewMode,
+  viewMode: _viewMode,
   setViewMode,
   palette,
   availablePaths,

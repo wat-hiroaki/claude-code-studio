@@ -2,9 +2,6 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '@stores/useAppStore'
 import type { Agent, Workspace, AgentProfileData, ClaudeTaskSession } from '@shared/types'
 import {
-  type CyberPalette,
-  type CyberStyle,
-  type MachineGroup2,
   useCyberPalette,
   getStatusTheme,
   groupByMachineAndProject,
@@ -12,7 +9,7 @@ import {
   SVG_WIDTH,
   SVG_HEIGHT
 } from './types'
-import type { AgentStatus, Team } from '@shared/types'
+import type { Team } from '@shared/types'
 
 export function useActivityMapState(teams: Team[]) {
   const { agents, usePtyMode, updateAgentInList, agentMemory, activeChainFlows, agentTeamsData } = useAppStore()

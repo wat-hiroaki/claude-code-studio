@@ -5,7 +5,6 @@ import type {
   TaskChain,
   Broadcast,
   Workspace,
-  WorkspaceProject,
   Task,
   PromptTemplate,
   AgentDefinition,
