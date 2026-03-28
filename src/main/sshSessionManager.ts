@@ -97,20 +97,32 @@ export class SshSessionManager {
         // Build startup command:
         // 1. cd to project path if available
         // 2. Try tmux if available, otherwise plain shell
-        // 3. Auto-start claude CLI
+        // 3. Auto-start claude CLI (handles 3 cases: alive/dead/new)
         const projectPath = agent.projectPath || workspace.projects?.[0]?.path || workspace.path
-        const cdCmd = projectPath ? `cd ${JSON.stringify(projectPath)} 2>/dev/null; ` : ''
-        const claudeCmd = `claude`
+        const cdCmd = projectPath ? `cd ${JSON.stringify(projectPath)} 2>/dev/null && ` : ''
 
-        // tmux command with fallback: check if tmux exists first
+        // tmux command with claude lifecycle management:
+        // Case 1a: tmux session exists + claude alive → just attach (full session resume)
+        // Case 1b: tmux session exists + claude dead → restart with --continue (preserve conversation)
+        // Case 2:  no tmux session → create new + start claude
+        // Case 3:  tmux not installed → direct shell
         const tmuxCmd = [
           `if command -v tmux >/dev/null 2>&1; then`,
           `  tmux set-option -g window-size largest 2>/dev/null;`,
-          `  tmux has-session -t ${tmuxSessionName} 2>/dev/null`,
-          `  && tmux attach-session -t ${tmuxSessionName}`,
-          `  || tmux new-session -s ${tmuxSessionName} -x ${cols} -y ${rows};`,
+          `  if tmux has-session -t ${tmuxSessionName} 2>/dev/null; then`,
+          `    PANE_CMD=$(tmux display-message -t ${tmuxSessionName} -p '#{pane_current_command}' 2>/dev/null);`,
+          `    case "$PANE_CMD" in`,
+          `      bash|zsh|sh|fish|dash)`,
+          `        tmux send-keys -t ${tmuxSessionName} "${cdCmd}claude --continue" Enter;;`,
+          `    esac;`,
+          `    tmux attach-session -t ${tmuxSessionName};`,
+          `  else`,
+          `    tmux new-session -d -s ${tmuxSessionName} -x ${cols} -y ${rows};`,
+          `    tmux send-keys -t ${tmuxSessionName} "${cdCmd}claude" Enter;`,
+          `    tmux attach-session -t ${tmuxSessionName};`,
+          `  fi;`,
           `else`,
-          `  ${cdCmd}${claudeCmd};`,
+          `  ${cdCmd}claude;`,
           `fi`
         ].join(' ')
 
