@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { useDroppable } from '@dnd-kit/core'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@stores/useAppStore'
 import { TerminalView } from '@components/TerminalView'
@@ -38,10 +38,22 @@ export function LeafPane({ leafId, agentId }: LeafPaneProps): JSX.Element {
   }, [])
   const leafCount = countLeaves(layoutTree)
   const compact = leafCount >= 4
+  const agentName = agents.find(a => a.id === agentId)?.name || ''
 
-  const { setNodeRef, isOver, active } = useDroppable({
+  const { setNodeRef: setDropRef, isOver, active } = useDroppable({
     id: `leaf-${leafId}`,
     data: { type: 'leaf', leafId }
+  })
+
+  const { attributes: dragAttributes, listeners: dragListeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: `pane-${leafId}`,
+    data: {
+      type: 'pane-agent',
+      agentId,
+      agentName,
+      leafId
+    },
+    disabled: !agentId
   })
 
   // Track mouse position for drop zone detection during drag
@@ -53,9 +65,9 @@ export function LeafPane({ leafId, agentId }: LeafPaneProps): JSX.Element {
   }, [active])
 
   const combinedRef = useCallback((node: HTMLDivElement | null) => {
-    setNodeRef(node)
+    setDropRef(node)
     ;(paneRef as React.MutableRefObject<HTMLDivElement | null>).current = node
-  }, [setNodeRef])
+  }, [setDropRef])
 
   // Empty pane
   if (!agentId) {
@@ -105,8 +117,6 @@ export function LeafPane({ leafId, agentId }: LeafPaneProps): JSX.Element {
     )
   }
 
-  const agentName = agents.find(a => a.id === agentId)?.name || ''
-
   return (
     <div
       ref={combinedRef}
@@ -123,7 +133,14 @@ export function LeafPane({ leafId, agentId }: LeafPaneProps): JSX.Element {
       onMouseMove={handleDragOver}
     >
       {/* Pane toolbar */}
-      <div className="flex items-center justify-between px-2 py-0.5 bg-card/80 border-b border-border/40 cursor-grab active:cursor-grabbing"
+      <div
+        ref={setDragRef}
+        {...dragListeners}
+        {...dragAttributes}
+        className={cn(
+          'flex items-center justify-between px-2 py-0.5 bg-card/80 border-b border-border/40 cursor-grab active:cursor-grabbing',
+          isDragging && 'opacity-40'
+        )}
         data-drag-handle={leafId}
       >
         <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]">
