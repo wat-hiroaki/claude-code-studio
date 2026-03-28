@@ -46,18 +46,25 @@ export function createWindow(database: Database): BrowserWindow {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#1a1a2e',
-      symbolColor: '#e0e0e0',
-      height: 36
-    },
+    ...(process.platform === 'linux' ? {
+      // Linux: let the WM handle decorations (bspwm, i3, sway, etc.)
+      frame: true
+    } : {
+      // Windows/macOS: custom title bar
+      titleBarStyle: 'hidden',
+      titleBarOverlay: {
+        color: '#09090b',
+        symbolColor: '#e0e0e0',
+        height: 36
+      }
+    }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
       nodeIntegration: false,
       contextIsolation: true,
-      webviewTag: true
+      webviewTag: true,
+      backgroundThrottling: false
     }
   })
 
@@ -68,6 +75,23 @@ export function createWindow(database: Database): BrowserWindow {
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
   })
+
+  // Linux: force repaint when window regains visibility after desktop switch
+  if (process.platform === 'linux') {
+    const forceRepaint = (): void => {
+      if (!mainWindow || mainWindow.isDestroyed()) return
+      mainWindow.webContents.invalidate()
+      // Force a layout recalc via CSS toggle
+      mainWindow.webContents.executeJavaScript(`
+        document.body.style.display = 'none';
+        document.body.offsetHeight;
+        document.body.style.display = '';
+      `).catch(() => {})
+    }
+    mainWindow.on('show', forceRepaint)
+    mainWindow.on('focus', forceRepaint)
+    mainWindow.on('restore', forceRepaint)
+  }
 
   // Save window bounds on resize/move
   const saveWindowBounds = (): void => {

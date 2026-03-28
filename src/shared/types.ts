@@ -485,44 +485,12 @@ export interface ElectronAPI {
   toggleFullscreen: () => Promise<boolean>
   isFullscreen: () => Promise<boolean>
 
-  // Aurelius Memory
-  aureliusSaveSession: (params: { summary: string; project: string; decisions?: string[]; problemsSolved?: { problem: string; solution: string }[]; nextSteps?: string[]; keyFiles?: string[] }) => Promise<{ id: string }>
-  aureliusGetSessions: (project?: string, limit?: number) => Promise<AureliusSession[]>
-  aureliusSearch: (query: string, type?: string) => Promise<AureliusNode[]>
-  aureliusRecall: (topic: string) => Promise<AureliusNode[]>
-  aureliusAvailable: () => Promise<boolean>
-  aureliusStatus: (project?: string) => Promise<string>
-
   // Plugins
   pluginList: () => Promise<PluginInfo[]>
   pluginToolbarButtons: () => Promise<PluginToolbarButton[]>
   pluginContextTabs: () => Promise<PluginContextTab[]>
   pluginCall: (pluginId: string, tool: string, args: Record<string, unknown>) => Promise<unknown>
   pluginInstall: (pluginId: string) => Promise<void>
-}
-
-// Aurelius Memory types
-export interface AureliusSession {
-  id: string
-  label: string
-  note: string
-  data?: {
-    project?: string
-    decisions?: string[]
-    next_steps?: string[]
-    problems_solved?: { problem: string; solution: string }[]
-    key_files?: string[]
-  }
-  created_at: string
-}
-
-export interface AureliusNode {
-  id: string
-  label: string
-  type: string
-  note?: string
-  data?: Record<string, unknown>
-  created_at: string
 }
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'fatal'

@@ -110,10 +110,11 @@ export function registerSystemHandlers(deps: SystemHandlerDeps): void {
 
   // Titlebar theme
   ipcMain.handle('app:titlebar-theme', (_event, isDark: boolean) => {
+    if (process.platform === 'linux') return // No titlebar overlay on Linux
     const mainWindow = getMainWindow()
     if (!mainWindow) return
     mainWindow.setTitleBarOverlay({
-      color: isDark ? '#1a1a2e' : '#ffffff',
+      color: isDark ? '#09090b' : '#ffffff',
       symbolColor: isDark ? '#e0e0e0' : '#333333'
     })
   })
@@ -189,8 +190,8 @@ export function registerSystemHandlers(deps: SystemHandlerDeps): void {
     if (diagnostics) {
       diagnostics.setEnabled(enabled)
     } else {
-      const diagnosticsModule = await import('@main/diagnostics')
-      setDiagnostics(new diagnosticsModule.DiagnosticsEngine(enabled))
+      const { DiagnosticsEngine } = await import('@main/diagnostics')
+      setDiagnostics(new DiagnosticsEngine(enabled))
     }
     database.updateSettings({ diagnosticsEnabled: enabled } as unknown as Partial<import('@shared/types').AppSettings>)
   })
@@ -270,7 +271,7 @@ export function registerSystemHandlers(deps: SystemHandlerDeps): void {
 
   // Update install
   ipcMain.handle('update:install', async () => {
-    const updater = await import('electron-updater')
-    updater.autoUpdater.quitAndInstall(false, true)
+    const { autoUpdater } = await import('electron-updater')
+    autoUpdater.quitAndInstall(false, true)
   })
 }

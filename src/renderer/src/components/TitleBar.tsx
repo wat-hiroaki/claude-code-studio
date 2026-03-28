@@ -18,7 +18,7 @@ export function TitleBar(): JSX.Element {
 
   return (
     <>
-      <div className="titlebar-drag flex items-center justify-between h-9 bg-card border-b border-border px-4 pr-[140px] select-none">
+      <div className="titlebar-drag flex items-center justify-between h-9 bg-card border-b border-border px-4 select-none">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-primary" />
           <span className="text-sm font-semibold">{t('app.title')}</span>

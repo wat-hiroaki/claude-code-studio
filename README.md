@@ -2,7 +2,7 @@
 
 > AI Agent Workspace Studio — Manage Claude Code CLI sessions like a team
 
-[English](#english) | [日本語](#japanese)
+[English](#english) | [Русский](#russian) | [日本語](#japanese)
 
 ---
 
@@ -40,7 +40,8 @@ Claude Code Studio is an Electron desktop application for managing multiple Clau
 - **Notifications** — Native OS notifications for approval requests and errors
 - **System Tray** — Background operation with status indicator
 - **Auto Update** — In-app update notifications and one-click install
-- **i18n** — English and Japanese
+- **Plugin System** — MCP-based plugins with manifest.json, toolbar buttons, and context tabs
+- **i18n** — English, Japanese, Russian (README)
 
 ### Tech Stack
 
@@ -103,32 +104,41 @@ npm run build
 
 ```
 src/
-├── main/                    # Electron main process
-│   ├── index.ts             # App entry, IPC handlers, routing
-│   ├── database.ts          # JSON file database (atomic writes)
-│   ├── pty-session-manager.ts   # Local PTY session management
-│   ├── ssh-session-manager.ts   # SSH + tmux remote sessions
-│   ├── chain-orchestrator.ts    # Task chain automation
-│   ├── claude-config-reader.ts  # CLAUDE.md/Memory/Skills/ConfigMap reader
-│   └── workspace-scanner.ts     # Project directory scanner
-├── preload/                 # Context bridge (secure IPC)
+├── main/                        # Electron main process
+│   ├── index.ts                 # App bootstrap (240 lines)
+│   ├── appState.ts              # Module-scoped app flags (isQuitting)
+│   ├── appLifecycle.ts          # App lifecycle events (quit, activate)
+│   ├── windowManager.ts         # Window + tray creation
+│   ├── sessionManager.ts        # Headless Claude CLI sessions
+│   ├── ptySessionManager.ts     # Interactive PTY sessions (node-pty)
+│   ├── sshSessionManager.ts     # SSH + tmux remote sessions
+│   ├── ptyOutputParser.ts       # Status detection from terminal output
+│   ├── chainOrchestrator.ts     # Task chain automation
+│   ├── scheduler.ts             # Interval-based chain scheduling
+│   ├── db/                      # Database layer (JSON file, atomic writes)
+│   │   ├── database.ts
+│   │   ├── agentQueries.ts
+│   │   ├── workspaceQueries.ts
+│   │   └── chainQueries.ts
+│   ├── ipc/                     # IPC handlers (typed deps pattern)
+│   │   ├── agentHandlers.ts
+│   │   ├── sessionHandlers.ts
+│   │   ├── workspaceHandlers.ts
+│   │   ├── configHandlers.ts
+│   │   └── systemHandlers.ts
+│   ├── config/                  # Config file readers
+│   └── plugins/                 # MCP-based plugin system
+│       ├── pluginManager.ts
+│       └── pluginIpcHandlers.ts
+├── preload/                     # Context bridge (70+ IPC channels)
 │   └── index.ts
-├── renderer/                # React UI
+├── renderer/                    # React 18 UI
 │   └── src/
-│       ├── components/      # UI components
-│       │   ├── PtyTerminalView.tsx     # Terminal + header + session lifecycle
-│       │   ├── XtermTerminal.tsx       # xterm.js wrapper
-│       │   ├── Composer.tsx            # Rich text input
-│       │   ├── AgentList.tsx           # Sidebar with workspace filtering
-│       │   ├── Dashboard.tsx           # Team dashboard with tab views
-│       │   ├── ConfigMap.tsx           # Per-workspace config visualization
-│       │   ├── ConfigMapOverview.tsx   # Organization-wide config overview
-│       │   ├── ActivityMap.tsx         # Real-time agent activity map
-│       │   └── ...
-│       ├── stores/          # Zustand state
-│       ├── i18n/            # EN/JA translations
-│       └── lib/             # Utilities
-└── shared/                  # Shared types
+│       ├── components/          # UI components
+│       ├── stores/              # Zustand state (useAppStore.ts)
+│       ├── i18n/                # EN/JA translations
+│       └── lib/                 # Utilities
+└── shared/                      # Shared types (single source of truth)
     └── types.ts
 ```
 
@@ -225,5 +235,56 @@ npm run package
 ```
 
 ## ライセンス
+
+MIT - wat-hiroaki
+
+---
+
+<a id="russian"></a>
+
+## Обзор
+
+Claude Code Studio — десктопное Electron-приложение для управления несколькими сессиями Claude Code CLI как командой. Решает 5 проблем:
+
+1. **Загрязнение контекста** — Воркспейсы изолируют конфигурации (MCP, API-ключи, ограничения) между проектами
+2. **Управление сессиями** — Дашборд для мониторинга нескольких агентов одновременно
+3. **Мобильность** — SSH + tmux сохраняют сессии на удалённых серверах
+4. **UX ввода** — Composer с шаблонами, Plan Mode, горячие клавиши
+5. **Видимость экосистемы** — Config Map и Agent Profile показывают CLAUDE.md, Memory, Skills, MCP, Hooks в одном месте
+
+### Ключевые возможности
+
+- **Изоляция воркспейсов** — Локальные или SSH, с конфигурацией на уровне проекта
+- **Настоящий терминал** — xterm.js + node-pty (не чат-пузыри)
+- **SSH + tmux** — Подключение к удалённым машинам, сессии живут в tmux
+- **Управление агентами** — Создание, роли, команды, проекты
+- **Плагины** — MCP-серверы с manifest.json, кнопки на тулбаре, вкладки контекста
+- **Activity Map** — Визуализация активности агентов в реальном времени
+- **Task Chains** — Автоматический запуск агента B при завершении агента A
+- **Multi-pane Layout** — 1/2/4 терминала рядом, drag-to-split
+- **Авто-обновление** — Уведомления + установка в один клик
+
+### Быстрый старт
+
+```bash
+git clone https://github.com/Blysspeak/claude-code-studio.git
+cd claude-code-studio
+npm install
+npm run dev
+```
+
+### Горячие клавиши
+
+| Клавиши | Действие |
+|---------|----------|
+| `Ctrl+N` | Новый агент |
+| `Ctrl+K` | Быстрый поиск |
+| `Ctrl+D` | Дашборд |
+| `Ctrl+L` | Фокус на Composer |
+| `Ctrl+Tab` | Следующий агент |
+| `Ctrl+Shift+P` | Правая панель |
+| `Ctrl+=` / `Ctrl+-` | Масштаб шрифта терминала |
+
+## Лицензия
 
 MIT - wat-hiroaki

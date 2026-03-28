@@ -194,11 +194,6 @@ export function PtyTerminalView({ agentId, compact = false }: PtyTerminalViewPro
     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
     : theme
 
-  // Only disable input when the session has exited.
-  // During thinking/tool_running, the user should still be able to type
-  // (same as interacting directly with the terminal).
-  const isInputDisabled = sessionExited
-
   const handleRestartSession = useCallback(async () => {
     setSessionExited(false)
     setExitCode(null)

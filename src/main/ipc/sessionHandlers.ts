@@ -97,7 +97,7 @@ export function registerSessionHandlers(deps: SessionHandlerDeps): void {
 
   // CLI session discovery
   ipcMain.handle('session:list', async () => {
-    const claudePath = (sessionManager as unknown as { claudePath: string }).claudePath ?? 'claude'
+    const claudePath = sessionManager.claudePath ?? 'claude'
     try {
       const { execFile: execFileCb } = await import('child_process')
       return new Promise<CliSessionInfo[]>((resolve) => {

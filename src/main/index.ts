@@ -2,9 +2,11 @@ import { app, BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import type { AgentStatus } from '@shared/types'
 
-// Fix Chromium/GTK warnings on Linux (driver-level, not fixable via packages)
+// Fix Chromium stability on Linux (cursor theme can cause SEGV, compositing causes white screen)
 if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('disable-gpu-vsync')
+  app.disableDomainBlockingFor3DAPIs()
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  process.env.XCURSOR_THEME = 'Adwaita'
   process.env.G_DEBUG = 'none'
 }
 

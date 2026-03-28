@@ -13,7 +13,6 @@ import {
   Trash2,
   Smile
 } from 'lucide-react'
-import type { Agent } from '@shared/types'
 import type { Workspace } from '@shared/types'
 
 interface ContextMenuState {

@@ -8,7 +8,6 @@ import { TaskChainPanel } from '@components/TaskChainPanel'
 import { InboxPanel } from '@components/InboxPanel'
 import { AgentProfileView } from '@components/AgentProfileView'
 import { BrowserPanel } from '@components/BrowserPanel'
-import { MemoryPanel } from '@components/MemoryPanel'
 import type { PluginContextTab as PluginTab } from '@shared/types'
 
 type ContextTab = 'details' | 'profile' | 'inbox' | 'chains' | 'browser' | string
@@ -104,15 +103,13 @@ export function ContextPane(): JSX.Element {
     )
   }
 
-  // Plugin tabs (e.g. Memory from Aurelius)
+  // Plugin tabs
   const activePluginTab = pluginTabs.find(pt => pt.id === activeTab)
   if (activePluginTab) {
     return (
       <div className="h-full border-l border-border bg-card flex flex-col overflow-hidden">
         {renderTabs()}
-        {activePluginTab.component === 'MemoryPanel' ? <MemoryPanel /> : (
-          <div className="p-4 text-sm text-muted-foreground">Plugin: {activePluginTab.label}</div>
-        )}
+        <div className="p-4 text-sm text-muted-foreground">Plugin: {activePluginTab.label}</div>
       </div>
     )
   }
@@ -131,10 +128,12 @@ export function ContextPane(): JSX.Element {
   return (
     <div className="h-full border-l border-border bg-card flex flex-col overflow-hidden">
       {renderTabs()}
-      {/* Browser panel — always mounted, toggled via CSS display */}
-      <div className="flex-1 min-h-0" style={{ display: activeTab === 'browser' ? 'block' : 'none' }}>
-        <BrowserPanel />
-      </div>
+      {/* Browser panel — lazy mount on Linux to avoid GPU crashes */}
+      {activeTab === 'browser' ? (
+        <div className="flex-1 min-h-0">
+          <BrowserPanel />
+        </div>
+      ) : null}
       {activeTab === 'details' && agent && (
         <div className="flex-1 overflow-y-auto">
           {/* Agent Profile */}
