@@ -364,6 +364,11 @@
     "dragResize": "ドラッグでリサイズ",
     "planModeOn": "Plan Mode ON — ファイル変更なし",
     "planModeOff": "Plan Modeに切替",
+    "expand": "コンポーザーを拡大",
+    "collapse": "コンポーザーを縮小",
+    "toCollapse": "で縮小",
+    "lines": "行",
+    "chars": "文字",
     "category": {
       "command": "コマンド",
       "review": "レビュー",

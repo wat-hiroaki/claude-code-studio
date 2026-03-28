@@ -364,6 +364,11 @@
     "dragResize": "Drag to resize",
     "planModeOn": "Plan Mode ON — files won't be modified",
     "planModeOff": "Switch to Plan Mode",
+    "expand": "Expand composer",
+    "collapse": "Collapse composer",
+    "toCollapse": "to collapse",
+    "lines": "lines",
+    "chars": "chars",
     "category": {
       "command": "Command",
       "review": "Review",

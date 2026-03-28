@@ -1,6 +1,6 @@
 {
   "name": "claude-code-studio",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "AI Agent Workspace Manager — Multi-workspace management for Claude Code CLI sessions",
   "main": "./out/main/index.js",
   "homepage": "https://github.com/wat-hiroaki/claude-code-studio",

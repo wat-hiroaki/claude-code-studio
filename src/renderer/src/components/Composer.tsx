@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type KeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
-import { Send, X, ChevronDown, ChevronUp, GripHorizontal, Plus, Pencil, Trash2, Paperclip, Search, FlaskConical, Hammer } from 'lucide-react'
+import { Send, X, ChevronDown, ChevronUp, GripHorizontal, Plus, Pencil, Trash2, Paperclip, Search, FlaskConical, Hammer, Maximize2, Minimize2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/useAppStore'
@@ -18,8 +18,8 @@ const BUILTIN_TEMPLATES: PromptTemplate[] = [
 ]
 
 const MIN_HEIGHT = 38
-const MAX_HEIGHT = 400
-const DEFAULT_MAX_HEIGHT = 200
+const MAX_HEIGHT_NORMAL = 400
+const EXPANDED_RATIO = 0.6 // 60% of viewport when expanded
 
 interface ComposerProps {
   agentId: string
@@ -41,6 +41,7 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
     const saved = localStorage.getItem('composerHeight')
     return saved ? parseInt(saved) : 0
   })
+  const [isExpanded, setIsExpanded] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formLabel, setFormLabel] = useState('')
@@ -51,13 +52,24 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
   const [isDragOver, setIsDragOver] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const templatesRef = useRef<HTMLDivElement>(null)
+  const composerRef = useRef<HTMLDivElement>(null)
   const savedDraft = useRef('')
   const isDragging = useRef(false)
   const dragStartY = useRef(0)
   const dragStartHeight = useRef(0)
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const effectiveMaxHeight = customMaxHeight > 0 ? customMaxHeight : DEFAULT_MAX_HEIGHT
+  const expandedMaxHeight = useMemo(() => {
+    return Math.floor(window.innerHeight * EXPANDED_RATIO)
+  }, [])
+
+  const effectiveMaxHeight = isExpanded
+    ? expandedMaxHeight
+    : (customMaxHeight > 0 ? customMaxHeight : MAX_HEIGHT_NORMAL)
+
+  // Line & char count
+  const lineCount = value ? value.split('\n').length : 0
+  const charCount = value.length
 
   // Cleanup send timer on unmount
   useEffect(() => {
@@ -108,11 +120,14 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
     setValue('')
     setAttachedFiles([])
 
+    // Collapse expanded state after send
+    if (isExpanded) setIsExpanded(false)
+
     // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
-  }, [agentId, value, disabled, attachedFiles])
+  }, [agentId, value, disabled, attachedFiles, isExpanded])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -126,6 +141,12 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
       if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault()
         handleSend()
+        return
+      }
+      // Escape to collapse expanded mode
+      if (e.key === 'Escape' && isExpanded) {
+        e.preventDefault()
+        setIsExpanded(false)
         return
       }
       // Up arrow — browse history (only when cursor is at the start or value is empty)
@@ -151,26 +172,37 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
         }
       }
     },
-    [handleSend, agentId, value, historyIndex]
+    [handleSend, agentId, value, historyIndex, isExpanded]
   )
 
   const handleInput = useCallback(() => {
     const textarea = textareaRef.current
     if (!textarea) return
 
-    if (customMaxHeight > 0) {
+    const maxH = effectiveMaxHeight
+
+    if (isExpanded) {
+      // Expanded mode — fill up to expanded max
+      textarea.style.height = 'auto'
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxH)}px`
+    } else if (customMaxHeight > 0) {
       // User has manually set height via drag — respect it as minimum
       // Only expand beyond custom height if content requires it
       textarea.style.height = `${customMaxHeight}px`
       if (textarea.scrollHeight > customMaxHeight) {
-        textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_HEIGHT)}px`
+        textarea.style.height = `${Math.min(textarea.scrollHeight, maxH)}px`
       }
     } else {
-      // No custom height — auto-expand as before
+      // No custom height — auto-expand
       textarea.style.height = 'auto'
-      textarea.style.height = `${Math.min(textarea.scrollHeight, DEFAULT_MAX_HEIGHT)}px`
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxH)}px`
     }
-  }, [customMaxHeight])
+  }, [customMaxHeight, effectiveMaxHeight, isExpanded])
+
+  // Re-calculate height when expanded state changes
+  useEffect(() => {
+    handleInput()
+  }, [isExpanded, handleInput])
 
   const handleClear = useCallback(() => {
     setValue('')
@@ -260,19 +292,20 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
   // Drag resize handlers
   const handleDragStart = useCallback((e: ReactMouseEvent) => {
     e.preventDefault()
+    if (isExpanded) return // Disable drag in expanded mode
     isDragging.current = true
     dragStartY.current = e.clientY
     const textarea = textareaRef.current
-    dragStartHeight.current = textarea ? textarea.offsetHeight : effectiveMaxHeight
+    dragStartHeight.current = textarea ? textarea.offsetHeight : (customMaxHeight > 0 ? customMaxHeight : MAX_HEIGHT_NORMAL)
     document.body.style.cursor = 'ns-resize'
     document.body.style.userSelect = 'none'
-  }, [effectiveMaxHeight])
+  }, [customMaxHeight, isExpanded])
 
   useEffect(() => {
     const handleMouseMove = (e: globalThis.MouseEvent): void => {
       if (!isDragging.current) return
       const delta = dragStartY.current - e.clientY
-      const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, dragStartHeight.current + delta))
+      const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT_NORMAL, dragStartHeight.current + delta))
       setCustomMaxHeight(newHeight)
       if (textareaRef.current) {
         textareaRef.current.style.height = `${newHeight}px`
@@ -301,6 +334,10 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
     }
   }, [])
 
+  const toggleExpand = useCallback(() => {
+    setIsExpanded((v) => !v)
+  }, [])
+
   const categoryBadge = (cat: string): string => {
     switch (cat) {
       case 'command': return 'bg-blue-500/20 text-blue-400'
@@ -314,7 +351,13 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
 
   return (
     <div
-      className={cn('border-t border-border/50 bg-card/80 backdrop-blur-sm transition-all', isDragOver && 'ring-2 ring-primary/50 bg-primary/5', className)}
+      ref={composerRef}
+      className={cn(
+        'border-t border-border/50 bg-card/80 backdrop-blur-sm transition-all',
+        isDragOver && 'ring-2 ring-primary/50 bg-primary/5',
+        isExpanded && 'border-t-2 border-primary/30',
+        className
+      )}
       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={(e) => {
@@ -329,11 +372,17 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
     >
       {/* Drag handle for resizing */}
       <div
-        className="flex items-center justify-center h-3 cursor-ns-resize group hover:bg-border/30 transition-colors"
+        className={cn(
+          'flex items-center justify-center h-4 cursor-ns-resize group transition-colors',
+          isExpanded ? 'bg-primary/10 cursor-default' : 'hover:bg-border/50'
+        )}
         onMouseDown={handleDragStart}
-        title={t('composer.dragResize', 'Drag to resize')}
+        title={isExpanded ? undefined : t('composer.dragResize', 'Drag to resize')}
       >
-        <GripHorizontal size={12} className="text-muted-foreground/30 group-hover:text-muted-foreground/60" />
+        <GripHorizontal size={14} className={cn(
+          'transition-colors',
+          isExpanded ? 'text-primary/40' : 'text-muted-foreground/50 group-hover:text-muted-foreground'
+        )} />
       </div>
       {/* Attached files chips */}
       {attachedFiles.length > 0 && (
@@ -361,65 +410,97 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
           onInput={handleInput}
           disabled={disabled}
           placeholder={disabled ? t('composer.waiting', 'Agent is busy...') : t('composer.placeholder', 'Type a message... (Enter to send, Shift+Enter for newline)')}
-          rows={1}
+          rows={isExpanded ? 8 : 1}
           className={cn(
-            'flex-1 resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2',
-            'text-sm font-mono placeholder:text-muted-foreground/50',
+            'flex-1 resize-none rounded-md border px-3 py-2',
+            'text-sm font-mono',
             'focus:outline-none focus:ring-1 focus:ring-primary/50',
             'disabled:opacity-50 disabled:cursor-not-allowed',
-            'scrollbar-thin scrollbar-thumb-border'
+            'scrollbar-thin scrollbar-thumb-border',
+            isExpanded
+              ? 'border-primary/30 bg-background placeholder:text-muted-foreground/60'
+              : 'border-border/50 bg-background/80 placeholder:text-muted-foreground/50'
           )}
           style={{ minHeight: `${MIN_HEIGHT}px`, maxHeight: `${effectiveMaxHeight}px` }}
         />
-        <div className="flex gap-1">
-          {value && (
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
+            {/* Expand/Collapse toggle */}
             <button
-              onClick={handleClear}
-              className="flex h-[38px] w-[38px] items-center justify-center rounded-md border border-border/50 text-muted-foreground hover:bg-muted/50 transition-colors"
-              title={t('composer.clear', 'Clear')}
+              onClick={toggleExpand}
+              className={cn(
+                'flex h-[38px] w-[38px] items-center justify-center rounded-md transition-colors',
+                isExpanded
+                  ? 'bg-primary/15 text-primary border border-primary/30'
+                  : 'border border-border/50 text-muted-foreground hover:bg-muted/50'
+              )}
+              title={t(isExpanded ? 'composer.collapse' : 'composer.expand')}
             >
-              <X size={16} />
+              {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
             </button>
-          )}
-          {/* Plan Mode Toggle */}
-          <button
-            onClick={() => togglePlanMode(agentId)}
-            className={cn(
-              'flex h-[38px] items-center gap-1 px-2 rounded-md transition-colors text-[10px] font-mono',
-              isPlanMode
-                ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
-                : 'border border-border/50 text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'
+            {value && (
+              <button
+                onClick={handleClear}
+                className="flex h-[38px] w-[38px] items-center justify-center rounded-md border border-border/50 text-muted-foreground hover:bg-muted/50 transition-colors"
+                title={t('composer.clear', 'Clear')}
+              >
+                <X size={16} />
+              </button>
             )}
-            title={isPlanMode
-              ? t('composer.planModeOn', 'Plan Mode ON — files won\'t be modified')
-              : t('composer.planModeOff', 'Switch to Plan Mode')
-            }
-          >
-            {isPlanMode
-              ? <><FlaskConical size={13} /> Plan</>
-              : <><Hammer size={13} /> Exec</>
-            }
-          </button>
+          </div>
+          <div className="flex gap-1">
+            {/* Plan Mode Toggle */}
+            <button
+              onClick={() => togglePlanMode(agentId)}
+              className={cn(
+                'flex h-[38px] items-center gap-1 px-2 rounded-md transition-colors text-[10px] font-mono',
+                isPlanMode
+                  ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                  : 'border border-border/50 text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'
+              )}
+              title={isPlanMode
+                ? t('composer.planModeOn', 'Plan Mode ON — files won\'t be modified')
+                : t('composer.planModeOff', 'Switch to Plan Mode')
+              }
+            >
+              {isPlanMode
+                ? <><FlaskConical size={13} /> Plan</>
+                : <><Hammer size={13} /> Exec</>
+              }
+            </button>
 
-          <button
-            onClick={handleSend}
-            disabled={disabled || !value.trim()}
-            className={cn(
-              'flex h-[38px] w-[38px] items-center justify-center rounded-md transition-colors',
-              value.trim() && !disabled
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'border border-border/50 text-muted-foreground/50 cursor-not-allowed'
-            )}
-            title={t('composer.send', 'Send (Ctrl+Enter)')}
-          >
-            <Send size={16} />
-          </button>
+            <button
+              onClick={handleSend}
+              disabled={disabled || !value.trim()}
+              className={cn(
+                'flex h-[38px] w-[38px] items-center justify-center rounded-md transition-colors',
+                value.trim() && !disabled
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'border border-border/50 text-muted-foreground/50 cursor-not-allowed'
+              )}
+              title={t('composer.send', 'Send (Ctrl+Enter)')}
+            >
+              <Send size={16} />
+            </button>
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-2 px-3 pb-1.5 text-[10px] text-muted-foreground/60">
         <span>Enter {t('composer.toSend', 'to send')}</span>
         <span>·</span>
         <span>Shift+Enter {t('composer.forNewline', 'for newline')}</span>
+        {isExpanded && (
+          <>
+            <span>·</span>
+            <span>Esc {t('composer.toCollapse', 'to collapse')}</span>
+          </>
+        )}
+        {/* Line & char count */}
+        {value && (
+          <span className="ml-1 tabular-nums">
+            {lineCount} {t('composer.lines', 'lines')} · {charCount} {t('composer.chars', 'chars')}
+          </span>
+        )}
         <div className="relative ml-auto" ref={templatesRef}>
           <button
             onClick={() => { setShowTemplates((v) => !v); setShowCreateForm(false); setEditingTemplate(null) }}
