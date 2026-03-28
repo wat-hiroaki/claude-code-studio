@@ -99,13 +99,12 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
       : trimmed
     const fullMessage = planPrefix + withFiles
 
-    // Send text to PTY, then send carriage return separately after a short delay.
-    window.api.ptyWrite(agentId, fullMessage)
+    // Send text with bracketed paste to preserve line breaks, then carriage return.
+    // Bracketed paste (\x1b[200~ ... \x1b[201~) tells the CLI to treat the content
+    // as pasted text, preventing newlines from being interpreted as Enter (submit).
     if (sendTimerRef.current) clearTimeout(sendTimerRef.current)
-    sendTimerRef.current = setTimeout(() => {
-      sendTimerRef.current = null
-      window.api.ptyWrite(agentId, '\r')
-    }, 50)
+    const pastedMessage = `\x1b[200~${fullMessage}\x1b[201~`
+    window.api.ptyWrite(agentId, pastedMessage + '\r')
     setValue('')
     setAttachedFiles([])
 

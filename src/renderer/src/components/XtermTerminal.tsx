@@ -131,10 +131,13 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
         if (sel) navigator.clipboard.writeText(sel)
         return false
       }
-      // Ctrl+V → paste from clipboard
+      // Ctrl+V → paste from clipboard with bracketed paste
       if (e.ctrlKey && e.key === 'v') {
         navigator.clipboard.readText().then((text) => {
-          if (text) window.api.ptyWrite(agentId, text)
+          if (text) {
+            const pasted = `\x1b[200~${text}\x1b[201~`
+            window.api.ptyWrite(agentId, pasted)
+          }
         })
         return false
       }
