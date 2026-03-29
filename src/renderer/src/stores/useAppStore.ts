@@ -46,6 +46,8 @@ interface AppState {
   setTeamStats: (stats: TeamStats) => void
 
   // UI state
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (collapsed: boolean) => void
   showRightPane: boolean
   showBroadcast: boolean
   showDashboard: boolean
@@ -193,6 +195,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTeamStats: (stats) => set({ teamStats: stats }),
 
   // UI state
+  sidebarCollapsed: false,
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   showRightPane: false,
   showBroadcast: false,
   showDashboard: true,
