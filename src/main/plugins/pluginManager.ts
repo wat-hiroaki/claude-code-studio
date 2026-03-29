@@ -3,8 +3,8 @@
  * Discovers, manages, and communicates with MCP-based plugins.
  */
 import { spawn, execFileSync } from 'child_process'
-import { existsSync, readdirSync, readFileSync } from 'fs'
-import { join } from 'path'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'fs'
+import { join, resolve, isAbsolute } from 'path'
 import { homedir } from 'os'
 import { app, dialog, BrowserWindow } from 'electron'
 import type {
@@ -13,6 +13,7 @@ import type {
   PluginToolbarButton,
   PluginContextTab
 } from '@shared/types'
+import { filterEnvForPlugin } from './pluginEnvFilter'
 
 interface McpConnection {
   process: ReturnType<typeof spawn>
@@ -30,21 +31,28 @@ export class PluginManager {
 
   constructor() {}
 
-  /** Filter out sensitive environment variables before passing to plugin processes */
-  private static getSanitizedEnv(): Record<string, string> {
-    const sensitivePatterns = [
-      /^(ANTHROPIC|OPENAI|AZURE|AWS|GCP|GOOGLE|GITHUB|GITLAB)_/i,
-      /_KEY$/i, /_TOKEN$/i, /_SECRET$/i, /_PASSWORD$/i, /_CREDENTIAL/i,
-      /^DATABASE_URL$/i, /^REDIS_URL$/i, /^MONGO/i,
-      /^NPM_TOKEN$/i, /^NUGET_API_KEY$/i, /^PRIVATE_/i
-    ]
-    const filtered: Record<string, string> = {}
-    for (const [key, value] of Object.entries(process.env)) {
-      if (value && !sensitivePatterns.some((p) => p.test(key))) {
-        filtered[key] = value
+  /** Validate that a plugin command path is safe (no traversal) */
+  private validateCommand(manifest: PluginManifest): void {
+    const cmd = manifest.mcp.command
+    if (cmd.includes('..') || cmd.includes('~')) {
+      throw new Error(`Unsafe plugin command path: ${cmd}`)
+    }
+    if (isAbsolute(cmd)) {
+      const resolved = resolve(cmd)
+      const localBin = join(homedir(), '.local', 'bin')
+      const pluginDir = join(homedir(), '.claude-code-studio', 'plugins')
+      const isAllowed = resolved.startsWith(localBin) || resolved.startsWith(pluginDir)
+      if (!isAllowed) {
+        try {
+          const real = realpathSync(resolved)
+          if (!real.startsWith(localBin) && !real.startsWith(pluginDir)) {
+            throw new Error(`Plugin command outside allowed paths: ${cmd}`)
+          }
+        } catch {
+          throw new Error(`Plugin command path not found: ${cmd}`)
+        }
       }
     }
-    return filtered
   }
 
   /** Scan bundled and user plugin directories for manifest.json files */
@@ -134,17 +142,21 @@ export class PluginManager {
   }
 
   /** Start an MCP subprocess for a plugin */
-  start(pluginId: string): void {
+  start(pluginId: string, extraEnvVars?: Record<string, string>): void {
     const entry = this.plugins.get(pluginId)
     if (!entry) throw new Error(`Plugin not found: ${pluginId}`)
     if (this.connections.has(pluginId)) return // already running
 
+    this.validateCommand(entry.manifest)
     const command = this.resolveCommand(entry.manifest)
     const args = entry.manifest.mcp.args
 
+    const filteredEnv = filterEnvForPlugin(process.env)
+    const pluginEnv = extraEnvVars ? { ...filteredEnv, ...extraEnvVars } : filteredEnv
+
     const proc = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: PluginManager.getSanitizedEnv()
+      env: pluginEnv
     })
 
     const conn: McpConnection = {
