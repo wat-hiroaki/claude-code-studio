@@ -20,6 +20,10 @@ interface PtySession {
   _retryCount?: number
   _conflictRetried?: boolean
   _idleTimer?: ReturnType<typeof setTimeout>
+  _autoRecoveryCount: number
+  _isResumed: boolean
+  _cols: number
+  _rows: number
 }
 
 export interface AgentMemoryInfo {
@@ -76,6 +80,12 @@ export class PtySessionManager {
     return 'claude'
   }
 
+  /** Maximum number of automatic recovery attempts after unexpected exit */
+  private static readonly MAX_AUTO_RECOVERY = 3
+
+  /** Base delay (ms) for exponential backoff on auto-recovery */
+  private static readonly RECOVERY_BASE_DELAY_MS = 2000
+
   async startSession(agent: Agent, cols = 120, rows = 30): Promise<void> {
     validateProjectPath(agent.projectPath)
 
@@ -88,9 +98,12 @@ export class PtySessionManager {
     }
 
     const sessionId = agent.claudeSessionId || uuidv4()
+    const isResume = !!agent.claudeSessionId
 
-    // Interactive mode — no stream-json flags
-    const args: string[] = ['--session-id', sessionId, '--verbose']
+    // Interactive mode — use --resume for existing sessions to restore conversation
+    const args: string[] = isResume
+      ? ['--resume', sessionId, '--verbose']
+      : ['--session-id', sessionId, '--verbose']
 
     if (agent.systemPrompt) {
       args.push('--system-prompt', agent.systemPrompt)
@@ -118,7 +131,11 @@ export class PtySessionManager {
       lastStatus: 'active',
       lastOutputLine: '',
       memoryMB: 0,
-      _conflictRetried: false
+      _conflictRetried: false,
+      _autoRecoveryCount: existing?._autoRecoveryCount ?? 0,
+      _isResumed: isResume,
+      _cols: cols,
+      _rows: rows
     }
 
     ptyProcess.onData((data: string) => {
@@ -158,6 +175,40 @@ export class PtySessionManager {
         const isKilled = !this.sessions.has(agent.id)
         const isWindowsCtrlC = process.platform === 'win32' && exitCode === -1073741510
         const isSuccess = exitCode === 0 || isKilled || isWindowsCtrlC
+
+        // Auto-recovery: retry on unexpected exit (network errors, crashes)
+        // Skip if user explicitly stopped or if max retries reached
+        if (!isSuccess && !isKilled && session._autoRecoveryCount < PtySessionManager.MAX_AUTO_RECOVERY) {
+          const attempt = session._autoRecoveryCount + 1
+          const delay = PtySessionManager.RECOVERY_BASE_DELAY_MS * Math.pow(2, attempt - 1)
+          console.warn(`[PtySession] Unexpected exit (code=${exitCode}) for ${agent.id}. Auto-recovery attempt ${attempt}/${PtySessionManager.MAX_AUTO_RECOVERY} in ${delay}ms`)
+
+          this.database.updateAgent(agent.id, { status: 'error' })
+          this.onStatusChange(agent.id, 'error')
+          this.sessions.delete(agent.id)
+
+          setTimeout(() => {
+            const currentAgent = this.database.getAgent(agent.id)
+            if (!currentAgent || this.sessions.has(agent.id)) return
+            // Carry forward the recovery count
+            const recoveryAgent = { ...currentAgent }
+            this.startSession(recoveryAgent, session._cols, session._rows)
+              .then(() => {
+                const newSession = this.sessions.get(agent.id)
+                if (newSession) newSession._autoRecoveryCount = attempt
+                console.info(`[PtySession] Auto-recovery succeeded for ${agent.id} (attempt ${attempt})`)
+              })
+              .catch((err) => {
+                console.error(`[PtySession] Auto-recovery failed for ${agent.id}:`, err)
+                this.database.updateAgent(agent.id, { status: 'error' })
+                this.onStatusChange(agent.id, 'error')
+              })
+          }, delay)
+
+          this.onExit(agent.id, exitCode)
+          return
+        }
+
         const status: AgentStatus = isSuccess ? 'idle' : 'error'
         this.database.updateAgent(agent.id, { status })
         this.onStatusChange(agent.id, status)
@@ -352,6 +403,10 @@ export class PtySessionManager {
   private setStatus(session: PtySession, newStatus: AgentStatus): void {
     if (newStatus === session.lastStatus) return
     session.lastStatus = newStatus
+    // Reset auto-recovery counter once session is stable again
+    if (newStatus === 'active' || newStatus === 'thinking' || newStatus === 'tool_running') {
+      session._autoRecoveryCount = 0
+    }
     this.database.updateAgent(session.agentId, {
       status: newStatus,
       ...(newStatus === 'active' ? { currentTask: null } : {})
