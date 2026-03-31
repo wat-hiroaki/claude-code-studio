@@ -14,17 +14,12 @@ All notable changes to Claude Code Studio will be documented in this file.
 - Composer UX improvements — expand toggle, drag handle, line/char count (84e2296)
 - Notes pad replaces Inbox tab in right pane (7354643)
 - Collapsible left sidebar with Ctrl+B shortcut (21f7363)
-- Plugin system with MCP-based architecture (e14a91c)
 - Drag-and-drop between panes via toolbar handle (757984a)
 
 ### Fixed
 - Preserve claudeSessionId across app restarts for session recovery (f4a3a57)
 - Japanese input and multiline text with bracketed paste (21ed2f1)
-- SSH+tmux session reconnection with claude lifecycle management (8575494)
 - Remove bottom gap in ActivityMap/ConfigMap, responsive stats cards (a886cf2)
-- Security hardening, lint fixes, remove bundled Aurelius plugin (3302f5a)
-- TitleBar platform-aware padding, Linux repaint cleanup (751917f)
-- Linux GPU stability — SIGSEGV fix, titlebar overlay crash fix (5e01a4c)
 
 ### Documentation
 - Screenshots added to README (be103b8)
