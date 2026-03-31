@@ -31,6 +31,27 @@ export class PluginManager {
 
   constructor() {}
 
+  /** Build the list of allowed absolute paths for plugin commands (platform-aware) */
+  private static getAllowedPaths(): string[] {
+    const home = homedir()
+    const paths = [
+      join(home, '.claude-code-studio', 'plugins'),
+      join(home, '.local', 'bin')
+    ]
+    if (process.platform === 'win32') {
+      paths.push(join(home, 'AppData', 'Local', 'Programs'))
+      paths.push(join(home, 'AppData', 'Local', 'claude-code-studio', 'plugins'))
+    }
+    // Normalize separators for consistent startsWith comparison
+    return paths.map((p) => p.replace(/\\/g, '/'))
+  }
+
+  /** Check if a resolved path starts with any allowed prefix */
+  private static isPathAllowed(resolvedPath: string): boolean {
+    const normalized = resolvedPath.replace(/\\/g, '/')
+    return PluginManager.getAllowedPaths().some((allowed) => normalized.startsWith(allowed))
+  }
+
   /** Validate that a plugin command path is safe (no traversal) */
   private validateCommand(manifest: PluginManifest): void {
     const cmd = manifest.mcp.command
@@ -39,17 +60,21 @@ export class PluginManager {
     }
     if (isAbsolute(cmd)) {
       const resolved = resolve(cmd)
-      const localBin = join(homedir(), '.local', 'bin')
-      const pluginDir = join(homedir(), '.claude-code-studio', 'plugins')
-      const isAllowed = resolved.startsWith(localBin) || resolved.startsWith(pluginDir)
-      if (!isAllowed) {
+      if (!PluginManager.isPathAllowed(resolved)) {
         try {
           const real = realpathSync(resolved)
-          if (!real.startsWith(localBin) && !real.startsWith(pluginDir)) {
+          if (!PluginManager.isPathAllowed(real)) {
             throw new Error(`Plugin command outside allowed paths: ${cmd}`)
           }
-        } catch {
-          throw new Error(`Plugin command path not found: ${cmd}`)
+        } catch (e: unknown) {
+          if (e instanceof Error && e.message.startsWith('Plugin command outside')) {
+            throw e
+          }
+          const code = (e as NodeJS.ErrnoException).code
+          if (code === 'ENOENT') {
+            throw new Error(`Plugin command path not found: ${cmd}`)
+          }
+          throw new Error(`Plugin command path validation failed (${code ?? 'unknown'}): ${cmd}`)
         }
       }
     }
