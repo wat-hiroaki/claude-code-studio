@@ -66,7 +66,7 @@ const SENSITIVE_PATTERNS = [
   /password/i,
   /private.?key/i,
   /auth.?token/i,
-  /api.?key$/i,
+  /api.?key/i,
   /credentials/i,
   /access.?key/i
 ]

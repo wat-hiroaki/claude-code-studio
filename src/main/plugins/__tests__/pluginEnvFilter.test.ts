@@ -142,4 +142,18 @@ describe('filterEnvForPlugin', () => {
     const result = filterEnvForPlugin({})
     expect(Object.keys(result)).toHaveLength(0)
   })
+
+  it('blocks API_KEY variants without $ anchor (e.g. SOME_API_KEY_FILE)', () => {
+    const env: NodeJS.ProcessEnv = {
+      SOME_API_KEY_FILE: '/path/to/key',
+      MY_API_KEY_PATH: '/another/path',
+      API_KEY_ROTATION_DATE: '2026-01-01',
+      PATH: '/usr/bin'
+    }
+    const result = filterEnvForPlugin(env)
+    expect(result.SOME_API_KEY_FILE).toBeUndefined()
+    expect(result.MY_API_KEY_PATH).toBeUndefined()
+    expect(result.API_KEY_ROTATION_DATE).toBeUndefined()
+    expect(result.PATH).toBe('/usr/bin')
+  })
 })

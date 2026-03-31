@@ -593,6 +593,7 @@ export interface PluginManifest {
     toolbarButtons: { id: string; tool: string; icon: string; prompt: string }[]
     contextTab?: { id: string; label: string; icon: string; component: string }
   }
+  permissions?: PluginPermissions
   install?: {
     check: string
     steps: string[]

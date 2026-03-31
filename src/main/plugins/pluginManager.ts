@@ -42,6 +42,11 @@ export class PluginManager {
       paths.push(join(home, 'AppData', 'Local', 'Programs'))
       paths.push(join(home, 'AppData', 'Local', 'claude-code-studio', 'plugins'))
     }
+    if (process.platform === 'darwin') {
+      paths.push('/usr/local/bin')
+      paths.push('/opt/homebrew/bin')
+      paths.push(join(home, 'Library', 'Application Support', 'claude-code-studio', 'plugins'))
+    }
     // Normalize separators for consistent startsWith comparison
     return paths.map((p) => p.replace(/\\/g, '/'))
   }
@@ -137,6 +142,14 @@ export class PluginManager {
     const localBin = join(homedir(), '.local', 'bin', cmd)
     if (existsSync(localBin)) return true
 
+    // Check macOS-specific paths (Homebrew)
+    if (process.platform === 'darwin') {
+      const homebrewBin = join('/opt/homebrew/bin', cmd)
+      if (existsSync(homebrewBin)) return true
+      const usrLocalBin = join('/usr/local/bin', cmd)
+      if (existsSync(usrLocalBin)) return true
+    }
+
     // Check PATH (cross-platform)
     try {
       const whichCmd = process.platform === 'win32' ? 'where' : 'which'
@@ -162,6 +175,14 @@ export class PluginManager {
     const localBin = join(homedir(), '.local', 'bin', cmd)
     if (existsSync(localBin)) return localBin
 
+    // Check macOS-specific paths (Homebrew)
+    if (process.platform === 'darwin') {
+      const homebrewBin = join('/opt/homebrew/bin', cmd)
+      if (existsSync(homebrewBin)) return homebrewBin
+      const usrLocalBin = join('/usr/local/bin', cmd)
+      if (existsSync(usrLocalBin)) return usrLocalBin
+    }
+
     // Fall back to PATH
     return cmd
   }
@@ -177,7 +198,8 @@ export class PluginManager {
     const args = entry.manifest.mcp.args
 
     const filteredEnv = filterEnvForPlugin(process.env)
-    const pluginEnv = extraEnvVars ? { ...filteredEnv, ...extraEnvVars } : filteredEnv
+    const filteredExtra = extraEnvVars ? filterEnvForPlugin(extraEnvVars as NodeJS.ProcessEnv) : undefined
+    const pluginEnv = filteredExtra ? { ...filteredEnv, ...filteredExtra } : filteredEnv
 
     const proc = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
