@@ -621,6 +621,12 @@ export interface PluginContextTab {
   component: string
 }
 
+export interface PluginPermissions {
+  allowedEnvVars: string[]
+  fsPathPrefixes: string[]
+  networkAccess: boolean
+}
+
 // Organization Overview: summary of each workspace's config
 export interface WorkspaceConfigSummary {
   projectPath: string

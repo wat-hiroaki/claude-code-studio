@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Panel, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useAppStore } from '@stores/useAppStore'
 import { TitleBar } from '@components/TitleBar'
 import { AgentList } from '@components/agentList'
@@ -25,12 +24,10 @@ interface MainLayoutProps {
   showRightPane: boolean
   onOpenScanner?: () => void
   sidebarRef: ReturnType<typeof usePanelRef>
-  sidebarCollapsed: boolean
-  onSidebarCollapse: (collapsed: boolean) => void
 }
 
-function MainLayout({ showRightPane, onOpenScanner, sidebarRef, sidebarCollapsed, onSidebarCollapse }: MainLayoutProps): JSX.Element {
-  const { t } = useTranslation()
+function MainLayout({ showRightPane, onOpenScanner, sidebarRef }: MainLayoutProps): JSX.Element {
+  const { setSidebarCollapsed } = useAppStore()
   const panelIds = showRightPane
     ? ['sidebar', 'terminal', 'context']
     : ['sidebar', 'terminal']
@@ -43,7 +40,7 @@ function MainLayout({ showRightPane, onOpenScanner, sidebarRef, sidebarCollapsed
   const toggleSidebar = useCallback(() => {
     const panel = sidebarRef.current
     if (!panel) return
-    if (panel.isCollapsed) {
+    if (panel.isCollapsed()) {
       panel.expand()
     } else {
       panel.collapse()
@@ -65,7 +62,7 @@ function MainLayout({ showRightPane, onOpenScanner, sidebarRef, sidebarCollapsed
         collapsedSize={0}
         panelRef={sidebarRef}
         onResize={(size) => {
-          onSidebarCollapse(size === 0)
+          setSidebarCollapsed(size === 0)
         }}
       >
         <ErrorBoundary fallbackMessage="Sidebar failed to render">
@@ -74,19 +71,9 @@ function MainLayout({ showRightPane, onOpenScanner, sidebarRef, sidebarCollapsed
       </Panel>
       <ResizeHandle />
       <Panel id="terminal" minSize={300}>
-        <div className="relative h-full">
-          {/* Sidebar toggle button */}
-          <button
-            onClick={toggleSidebar}
-            className="absolute top-1 left-1 z-10 p-1 rounded hover:bg-accent text-muted-foreground transition-colors opacity-60 hover:opacity-100"
-            title={t(sidebarCollapsed ? 'sidebar.expand' : 'sidebar.collapse')}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-          </button>
-          <ErrorBoundary fallbackMessage="Terminal failed to render">
-            <LayoutTree onOpenScanner={onOpenScanner} />
-          </ErrorBoundary>
-        </div>
+        <ErrorBoundary fallbackMessage="Terminal failed to render">
+          <LayoutTree onOpenScanner={onOpenScanner} />
+        </ErrorBoundary>
       </Panel>
       {showRightPane && (
         <>
@@ -120,7 +107,6 @@ export function App(): JSX.Element {
   const [showWorkspaceScanner, setShowWorkspaceScanner] = useState(false)
   const [prefillWorkspace, setPrefillWorkspace] = useState<DiscoveredWorkspace | null>(null)
   const sidebarRef = usePanelRef()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // Listen for QuickSearch new-agent command
   useEffect(() => {
@@ -249,7 +235,7 @@ export function App(): JSX.Element {
         e.preventDefault()
         const panel = sidebarRef.current
         if (panel) {
-          if (panel.isCollapsed) panel.expand()
+          if (panel.isCollapsed()) panel.expand()
           else panel.collapse()
         }
       }
@@ -332,8 +318,6 @@ export function App(): JSX.Element {
               showRightPane={showRightPane}
               onOpenScanner={() => setShowWorkspaceScanner(true)}
               sidebarRef={sidebarRef}
-              sidebarCollapsed={sidebarCollapsed}
-              onSidebarCollapse={setSidebarCollapsed}
             />
           </DndProvider>
         )}

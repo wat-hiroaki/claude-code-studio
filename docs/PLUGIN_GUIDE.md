@@ -159,6 +159,23 @@ function handleTool(name, args) {
 - **Install steps require user approval** — A confirmation dialog shows all commands before execution
 - **Tool calls are validated** — Only tools declared in `manifest.json` can be called
 - **Environment is sanitized** — Sensitive environment variables (API keys, tokens, secrets) are filtered out before plugin processes start
+- **Command paths are validated** — Path traversal (`..`, `~`) is rejected; absolute paths must resolve to `~/.local/bin/` or `~/.claude-code-studio/plugins/`
+- **Process isolation** — Each plugin runs as a separate subprocess; crashes don't affect other plugins or the main app
+- **No webview access** — Plugins communicate exclusively via MCP (stdin/stdout JSON-RPC), not via the Electron renderer. The `webviewTag: true` setting is used solely for the built-in Browser panel
+
+### Blocked Environment Variables
+
+The following are automatically filtered from plugin processes:
+
+- API keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`, `GH_TOKEN`, etc.
+- Cloud credentials: `AWS_SECRET_ACCESS_KEY`, `AZURE_CLIENT_SECRET`, `GOOGLE_APPLICATION_CREDENTIALS`
+- Database: `DATABASE_URL`, `PGPASSWORD`, `REDIS_URL`, `MONGO_URI`
+- SSH: `SSH_AUTH_SOCK`, `SSH_AGENT_PID`
+- Any variable matching: `*SECRET*`, `*PASSWORD*`, `*PRIVATE_KEY*`, `*AUTH_TOKEN*`, `*API_KEY`
+
+System variables (`PATH`, `HOME`, `TERM`, `LANG`, `DISPLAY`, `XDG_*`) are always passed through.
+
+If your plugin requires a specific variable, it can be configured via per-plugin env var settings (planned)
 
 ## Available Icons
 

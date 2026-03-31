@@ -5,5 +5,6 @@ export function stripAnsiCodes(str: string): string {
     .replace(/\x1B\][^\x07]*\x07/g, '')               // OSC sequences
     .replace(/\x1B[()][0-9A-B]/g, '')                  // Character set selection
     .replace(/\x1B[\x20-\x2F]*[\x30-\x7E]/g, '')      // Other ESC sequences
+    .replace(/O\?[\d;]*c/g, '')                        // Orphaned DA responses (ESC lost at chunk boundary)
 }
 /* eslint-enable no-control-regex */

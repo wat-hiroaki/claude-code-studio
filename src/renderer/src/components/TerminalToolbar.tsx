@@ -12,7 +12,7 @@ import {
   Plus,
   Pencil,
   Trash2,
-  X
+  X,
 } from 'lucide-react'
 import type { PromptTemplate } from '@shared/types'
 

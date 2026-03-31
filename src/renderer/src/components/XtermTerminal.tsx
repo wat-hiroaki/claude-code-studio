@@ -146,6 +146,15 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
         terminal.clear()
         return false
       }
+      // App-level shortcuts — block from PTY and re-dispatch to window
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'b' || e.key === 'd' || e.key === 'n' || e.key === 'k' || e.key === 'l' || e.key === 'w')) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, ctrlKey: true, shiftKey: false, bubbles: true }))
+        return false
+      }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'B')) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, ctrlKey: true, shiftKey: true, bubbles: true }))
+        return false
+      }
       return true // let all other keys pass through to PTY
     })
 

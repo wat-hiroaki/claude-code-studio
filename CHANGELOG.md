@@ -2,6 +2,38 @@
 
 All notable changes to Claude Code Studio will be documented in this file.
 
+## [v0.9.1] - 2026-03-29
+
+### Security
+- Modular env filtering for plugin subprocesses — denylist of ~50 sensitive vars + pattern matching (2665166)
+- Command path validation prevents traversal attacks in plugin manifests (2665166)
+
+### Added
+- Russian language support (i18n) (12deaeb)
+- Split pane buttons and sidebar collapse toggle (652ad90)
+- Composer UX improvements — expand toggle, drag handle, line/char count (84e2296)
+- Notes pad replaces Inbox tab in right pane (7354643)
+- Collapsible left sidebar with Ctrl+B shortcut (21f7363)
+- Plugin system with MCP-based architecture (e14a91c)
+- Drag-and-drop between panes via toolbar handle (757984a)
+
+### Fixed
+- Preserve claudeSessionId across app restarts for session recovery (f4a3a57)
+- Japanese input and multiline text with bracketed paste (21ed2f1)
+- SSH+tmux session reconnection with claude lifecycle management (8575494)
+- Remove bottom gap in ActivityMap/ConfigMap, responsive stats cards (a886cf2)
+- Security hardening, lint fixes, remove bundled Aurelius plugin (3302f5a)
+- TitleBar platform-aware padding, Linux repaint cleanup (751917f)
+- Linux GPU stability — SIGSEGV fix, titlebar overlay crash fix (5e01a4c)
+
+### Documentation
+- Screenshots added to README (be103b8)
+- Plugin guide with security section expanded (2665166)
+- CHANGELOG.md, Phase 4-6 roadmap in PRODUCT_VISION.md (122d6d5, 9570938)
+
+### Tests
+- Unit tests for plugin env filtering — 13 tests (b1b1e8e)
+
 ## [0.8.4] - 2026-03-28
 
 ### Fixed
