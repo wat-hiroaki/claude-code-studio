@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@stores/useAppStore'
 import { getInitials } from '@lib/status'
-import { FolderOpen, Clock, Cpu, Link, StickyNote, User, FileText, RotateCw, Square, AlertCircle, Globe, Brain, Zap, Plug, Shield, X } from 'lucide-react'
+import { FolderOpen, Clock, Cpu, Link, StickyNote, User, FileText, RotateCw, Square, AlertCircle, Globe, Brain, Zap, Plug, Shield, Filter, X } from 'lucide-react'
 import { cn } from '@lib/utils'
 import { showToast } from '@components/ToastContainer'
 import { TaskChainPanel } from '@components/TaskChainPanel'
@@ -361,22 +361,46 @@ export function ContextPane(): JSX.Element {
               />
               {profileHook.expanded.mcp && (
                 <div className="pb-1">
-                  {profileHook.profile.mcpServers.length === 0 ? (
-                    <p className="px-4 py-1 text-[10px] text-muted-foreground/50">{t('profile.noMcp', 'No MCP servers configured')}</p>
-                  ) : (
-                    profileHook.profile.mcpServers.map((server) => (
-                      <div key={server.name} className="flex items-center gap-2 px-4 py-1.5 hover:bg-muted/20">
-                        <div className={cn(
-                          'w-1.5 h-1.5 rounded-full shrink-0',
-                          server.enabled ? 'bg-green-400' : 'bg-muted-foreground/30'
-                        )} />
-                        <span className="text-[11px] font-medium">{server.name}</span>
-                        <span className="text-[9px] text-muted-foreground font-mono truncate">
-                          {server.command}
-                        </span>
-                      </div>
-                    ))
-                  )}
+                  {(() => {
+                    const filter = agent?.mcpServerFilter
+                    const isFiltered = filter?.enabled && filter.allowedServers.length > 0
+                    const allowedSet = isFiltered ? new Set(filter.allowedServers) : null
+                    return (
+                      <>
+                        {isFiltered && (
+                          <div className="flex items-center gap-1.5 px-4 py-1 text-[10px] text-cyan-400">
+                            <Filter size={10} />
+                            {t('mcp.filterActive', 'Allowlist active ({{count}} servers)', { count: filter.allowedServers.length })}
+                          </div>
+                        )}
+                        {profileHook.profile.mcpServers.length === 0 ? (
+                          <p className="px-4 py-1 text-[10px] text-muted-foreground/50">{t('profile.noMcp', 'No MCP servers configured')}</p>
+                        ) : (
+                          profileHook.profile.mcpServers.map((server) => {
+                            const isAllowed = !allowedSet || allowedSet.has(server.name)
+                            return (
+                              <div key={server.name} className={cn(
+                                'flex items-center gap-2 px-4 py-1.5 hover:bg-muted/20',
+                                !isAllowed && 'opacity-35'
+                              )}>
+                                <div className={cn(
+                                  'w-1.5 h-1.5 rounded-full shrink-0',
+                                  isAllowed && server.enabled ? 'bg-green-400' : 'bg-muted-foreground/30'
+                                )} />
+                                <span className="text-[11px] font-medium">{server.name}</span>
+                                <span className="text-[9px] text-muted-foreground font-mono truncate">
+                                  {server.command}
+                                </span>
+                                {allowedSet && !isAllowed && (
+                                  <span className="text-[9px] text-muted-foreground/50 ml-auto">{t('mcp.filtered', 'filtered')}</span>
+                                )}
+                              </div>
+                            )
+                          })
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
 
