@@ -18,6 +18,7 @@
     "active": "active",
     "error": "err",
     "awaiting": "wait",
+    "toggleSidebar": "Toggle Sidebar",
     "toggleContextPane": "Toggle Context Pane",
     "splitHorizontal": "Split Right",
     "splitVertical": "Split Down"

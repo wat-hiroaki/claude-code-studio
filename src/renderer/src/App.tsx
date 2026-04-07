@@ -27,7 +27,7 @@ interface MainLayoutProps {
 }
 
 function MainLayout({ showRightPane, onOpenScanner, sidebarRef }: MainLayoutProps): JSX.Element {
-  const { setSidebarCollapsed } = useAppStore()
+  const { setSidebarCollapsed, setToggleSidebar } = useAppStore()
   const panelIds = showRightPane
     ? ['sidebar', 'terminal', 'context']
     : ['sidebar', 'terminal']
@@ -46,6 +46,11 @@ function MainLayout({ showRightPane, onOpenScanner, sidebarRef }: MainLayoutProp
       panel.collapse()
     }
   }, [sidebarRef])
+
+  useEffect(() => {
+    setToggleSidebar(toggleSidebar)
+    return () => setToggleSidebar(null)
+  }, [toggleSidebar, setToggleSidebar])
 
   return (
     <Group

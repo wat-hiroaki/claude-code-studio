@@ -18,6 +18,7 @@
     "active": "稼働中",
     "error": "エラー",
     "awaiting": "待機",
+    "toggleSidebar": "サイドバー切替",
     "toggleContextPane": "コンテキストペイン切替",
     "splitHorizontal": "右に分割",
     "splitVertical": "下に分割"

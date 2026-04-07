@@ -18,6 +18,7 @@
     "active": "акт.",
     "error": "ош.",
     "awaiting": "ожид.",
+    "toggleSidebar": "Боковая панель",
     "toggleContextPane": "Панель контекста",
     "splitHorizontal": "Разделить вправо",
     "splitVertical": "Разделить вниз"

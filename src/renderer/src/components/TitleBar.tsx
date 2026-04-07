@@ -4,6 +4,7 @@ import { useAppStore } from '@stores/useAppStore'
 import { SettingsModal } from '@components/SettingsModal'
 import {
   LayoutDashboard,
+  PanelLeft,
   PanelRight,
   Settings,
   RotateCcw,
@@ -17,7 +18,7 @@ const platform = window.api.getPlatform()
 
 export function TitleBar(): JSX.Element {
   const { t } = useTranslation()
-  const { toggleDashboard, toggleRightPane, showDashboard, resetLayout, layoutTree, teamStats, selectedAgentId, splitPane } = useAppStore()
+  const { toggleDashboard, toggleRightPane, toggleSidebar, showDashboard, resetLayout, layoutTree, teamStats, selectedAgentId, splitPane } = useAppStore()
   const [showSettings, setShowSettings] = useState(false)
   const leafCount = countLeaves(layoutTree)
 
@@ -73,6 +74,15 @@ export function TitleBar(): JSX.Element {
         </div>
 
         <div className="flex items-center gap-1">
+          {toggleSidebar && (
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 rounded hover:bg-accent text-muted-foreground transition-colors"
+              title={t('titleBar.toggleSidebar', 'Toggle Sidebar')}
+            >
+              <PanelLeft size={16} />
+            </button>
+          )}
           {/* Pane count indicator + reset */}
           {leafCount > 1 && (
             <button

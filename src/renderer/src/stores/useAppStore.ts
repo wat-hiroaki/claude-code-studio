@@ -48,6 +48,8 @@ interface AppState {
   // UI state
   sidebarCollapsed: boolean
   setSidebarCollapsed: (collapsed: boolean) => void
+  toggleSidebar: (() => void) | null
+  setToggleSidebar: (fn: (() => void) | null) => void
   showRightPane: boolean
   showBroadcast: boolean
   showDashboard: boolean
@@ -197,6 +199,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // UI state
   sidebarCollapsed: false,
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  toggleSidebar: null,
+  setToggleSidebar: (fn) => set({ toggleSidebar: fn }),
   showRightPane: false,
   showBroadcast: false,
   showDashboard: true,
