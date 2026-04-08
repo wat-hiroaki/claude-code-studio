@@ -199,10 +199,10 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
     }
   }, [customMaxHeight, effectiveMaxHeight, isExpanded])
 
-  // Re-calculate height when expanded state changes
+  // Re-calculate height when expanded state or value changes
   useEffect(() => {
     handleInput()
-  }, [isExpanded, handleInput])
+  }, [isExpanded, value, handleInput])
 
   const handleClear = useCallback(() => {
     setValue('')
@@ -412,8 +412,8 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
           placeholder={disabled ? t('composer.waiting', 'Agent is busy...') : t('composer.placeholder', 'Type a message... (Enter to send, Shift+Enter for newline)')}
           rows={isExpanded ? 8 : 1}
           className={cn(
-            'flex-1 resize-none rounded-md border px-3 py-2',
-            'text-sm font-mono',
+            'flex-1 min-w-0 resize-none rounded-md border px-3 py-2',
+            'text-sm font-mono break-words',
             'focus:outline-none focus:ring-1 focus:ring-primary/50',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             'scrollbar-thin scrollbar-thumb-border',
@@ -421,7 +421,7 @@ export function Composer({ agentId, disabled = false, className }: ComposerProps
               ? 'border-primary/30 bg-background placeholder:text-muted-foreground/60'
               : 'border-border/50 bg-background/80 placeholder:text-muted-foreground/50'
           )}
-          style={{ minHeight: `${MIN_HEIGHT}px`, maxHeight: `${effectiveMaxHeight}px` }}
+          style={{ minHeight: `${MIN_HEIGHT}px`, maxHeight: `${effectiveMaxHeight}px`, overflowWrap: 'break-word', wordBreak: 'break-all' }}
         />
         <div className="flex flex-col gap-1">
           <div className="flex gap-1">
