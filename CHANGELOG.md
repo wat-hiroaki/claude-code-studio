@@ -2,6 +2,15 @@
 
 All notable changes to Claude Code Studio will be documented in this file.
 
+## [v0.10.4] - 2026-05-01
+
+### Fixed
+- **Terminal paste broken in Electron** (#21) — Ctrl+V was sending the SYN control character (0x16) to the PTY because xterm's hidden-textarea paste event does not fire reliably under Electron. Clipboard is now read explicitly via `navigator.clipboard.readText()` and written to the PTY.
+
+### Added
+- **Cmd+V** (macOS) and **Shift+Insert** as paste shortcuts in the terminal
+- **Right-click paste** when no selection exists (selection still copies, matching VS Code / Windows Terminal behavior)
+
 ## [v0.10.3] - 2026-04-09
 
 ### Added
