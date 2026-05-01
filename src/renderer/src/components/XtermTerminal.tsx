@@ -131,9 +131,18 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
         if (sel) navigator.clipboard.writeText(sel)
         return false
       }
-      // Ctrl+V → let xterm handle paste natively (via onData)
-      if (e.ctrlKey && e.key === 'v') {
-        return true
+      // Ctrl+V / Cmd+V / Shift+Insert → read clipboard and write to PTY
+      // (Electron's hidden textarea paste event is unreliable; handle explicitly)
+      if (
+        ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) ||
+        (e.shiftKey && e.key === 'Insert')
+      ) {
+        navigator.clipboard.readText().then((text) => {
+          if (text) window.api.ptyWrite(agentId, text)
+        }).catch(() => {
+          // Clipboard read can fail if permission is denied; fail silently
+        })
+        return false
       }
       // Ctrl+Shift+K → clear terminal scrollback
       if (e.ctrlKey && e.shiftKey && e.key === 'K') {
@@ -152,11 +161,11 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
       return true // let all other keys pass through to PTY
     })
 
-    // Right-click context menu: copy selection
+    // Right-click context menu: copy selection if present, otherwise paste
     const contextMenuHandler = (e: MouseEvent): void => {
+      e.preventDefault()
       const selection = terminal.getSelection()
       if (selection) {
-        e.preventDefault()
         navigator.clipboard.writeText(selection)
         // Brief visual flash to indicate copy
         const el = terminal.element
@@ -164,6 +173,12 @@ export function XtermTerminal({ agentId, theme = 'dark', fontSize = 13 }: XtermT
           el.style.opacity = '0.7'
           setTimeout(() => { el.style.opacity = '1' }, 100)
         }
+      } else {
+        navigator.clipboard.readText().then((text) => {
+          if (text) window.api.ptyWrite(agentId, text)
+        }).catch(() => {
+          // Clipboard read can fail if permission is denied; fail silently
+        })
       }
     }
     terminal.element?.addEventListener('contextmenu', contextMenuHandler)
